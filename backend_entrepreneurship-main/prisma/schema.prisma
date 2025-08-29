@@ -1,0 +1,178 @@
+generator client {
+  provider = "prisma-client-js"
+
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Analisis_IA {
+  analisis_id                   Int                             @id @default(autoincrement())
+  negocio_id                    Int
+  fecha_analisis                DateTime?                       @default(now()) @db.Timestamp(6)
+  Negocios                      Negocios                        @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_analisis_negocios")
+  Resultados_Costos_Analizados  Resultados_Costos_Analizados[]
+  Resultados_Costos_Omitidos    Resultados_Costos_Omitidos[]
+  Resultados_Plan_Accion        Resultados_Plan_Accion[]
+  Resultados_Riesgos_Detectados Resultados_Riesgos_Detectados[]
+  Resultados_Analisis_Completo  Resultados_Analisis_Completo[]
+}
+
+model Aprendizaje {
+  id_aprendizaje Int       @id @default(autoincrement())
+  nombre         String    @db.VarChar(100)
+  total_niveles  Int?
+  Modulos        Modulos[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model Estados {
+  id_estado           Int                   @id @default(autoincrement())
+  nombre_estado       String                @db.VarChar(50)
+  NegocioProgresoPaso NegocioProgresoPaso[]
+}
+
+model Modulos {
+  id_modulo             Int                     @id @default(autoincrement())
+  id_aprendizaje        Int
+  orden_modulo          Int?
+  nombre_modulo         String                  @db.VarChar(150)
+  titulo_conteido       String?                 @db.VarChar(255)
+  concepto              String
+  recurso_interactivo   String?                 @db.VarChar(255)
+  Aprendizaje                    Aprendizaje             @relation(fields: [id_aprendizaje], references: [id_aprendizaje], onDelete: NoAction, onUpdate: NoAction, map: "fk_modulos_aprendizaje")
+  NegocioProgresoPaso            NegocioProgresoPaso[]
+  Registros_financieros          Registros_financieros[]
+  Resultados_Validacion_Costos   Resultados_Validacion_Costos[]
+  Resultados_Analisis_Completo   Resultados_Analisis_Completo[]
+}
+
+model NegocioProgresoPaso {
+  id               Int       @id @default(autoincrement())
+  negocio_id       Int
+  modulo_id        Int
+  id_estado        Int
+  fecha_inicio     DateTime? @db.Timestamp(6)
+  fecha_completado DateTime? @db.Timestamp(6)
+  Estados          Estados   @relation(fields: [id_estado], references: [id_estado], onDelete: NoAction, onUpdate: NoAction, map: "fk_progreso_estados")
+  Modulos          Modulos   @relation(fields: [modulo_id], references: [id_modulo], onDelete: NoAction, onUpdate: NoAction, map: "fk_progreso_modulos")
+  Negocios         Negocios  @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_progreso_negocios")
+  @@unique([negocio_id, modulo_id], map: "unique_progreso_negocio_modulo")
+  @@map("NegocioProgresoPaso")
+
+}
+
+model Negocios {
+  negocio_id            Int                     @id @default(autoincrement()) @map("negocio_id")
+  usuario_id            Int                     @map("usuario_id")
+  tipo_negocio          String                 @db.VarChar(100)   @map("tipo_negocio")
+  nombre_negocio        String                  @db.VarChar(200)  @map("nombre_negocio")
+  ubicacion             String
+  id_tamano             Int                     @map("id_tamano")
+  fecha_creacion        DateTime?               @default(now()) @db.Timestamp(6)   @map("fecha_creacion")
+  Analisis_IA                    Analisis_IA[]
+  NegocioProgresoPaso            NegocioProgresoPaso[]
+  tamano_negocio                 tamano_negocio          @relation(fields: [id_tamano], references: [id_tamano], onDelete: NoAction, onUpdate: NoAction, map: "fk_negocios_tamano")
+  Usuarios                       Usuarios                @relation(fields: [usuario_id], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_negocios_usuarios")
+  Registros_financieros          Registros_financieros[]
+  Resultados_Validacion_Costos   Resultados_Validacion_Costos[]
+  Resultados_Analisis_Completo  Resultados_Analisis_Completo[]
+  @@map("Negocios")
+}
+
+model Registros_financieros {
+  registro_id    Int       @id @default(autoincrement())
+  negocio_id     Int
+  modulo_id      Int
+  nombre         String    @db.VarChar(150)
+  monto          Decimal   @db.Decimal(12, 2)
+  fecha_registro DateTime? @default(now()) @db.Timestamp(6)
+  Modulos        Modulos   @relation(fields: [modulo_id], references: [id_modulo], onDelete: NoAction, onUpdate: NoAction, map: "fk_registros_modulos")
+  Negocios       Negocios  @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_registros_negocios")
+}
+
+model Resultados_Costos_Analizados {
+  resultado_costo_id Int         @id @default(autoincrement())
+  analisis_id        Int
+  nombre_costo       String?     @db.VarChar(150)
+  valor_recibido     String?     @db.VarChar(50)
+  rango_estimado     String?     @db.VarChar(100)
+  evaluacion         String?     @db.VarChar(100)
+  comentario         String?
+  Analisis_IA        Analisis_IA @relation(fields: [analisis_id], references: [analisis_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_resultados_analisis")
+}
+
+model Resultados_Costos_Omitidos {
+  costo_omitido_id Int         @id @default(autoincrement())
+  analisis_id      Int
+  costo_omitido    String?     @db.VarChar(255)
+  importancia      String?     @db.VarChar(100)
+  Analisis_IA      Analisis_IA @relation(fields: [analisis_id], references: [analisis_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_omitidos_analisis")
+}
+
+model Resultados_Plan_Accion {
+  plan_id     Int         @id @default(autoincrement())
+  analisis_id Int
+  titulo      String?     @db.VarChar(255)
+  descripcion String?
+  prioridad   String?     @db.VarChar(50)
+  Analisis_IA Analisis_IA @relation(fields: [analisis_id], references: [analisis_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_plan_analisis")
+}
+
+model Resultados_Riesgos_Detectados {
+  riesgo_id         Int         @id @default(autoincrement())
+  analisis_id       Int
+  riesgo            String?     @db.VarChar(255)
+  causa_directa     String?
+  impacto_potencial String?
+  Analisis_IA       Analisis_IA @relation(fields: [analisis_id], references: [analisis_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_riesgos_analisis")
+}
+
+model Resultados_Validacion_Costos {
+  validacion_id              Int         @id @default(autoincrement())
+  negocio_id                 Int
+  modulo_id                  Int
+  fecha_validacion           DateTime?   @default(now()) @db.Timestamp(6)
+  costos_validados           Json?       // Array de costos validados
+  costos_faltantes           Json?       // Array de costos faltantes
+  resumen_validacion         Json?       // Resumen completo de validación
+  puntuacion_global          Int?        // Puntuación 1-10
+  puede_proseguir_analisis   Boolean     @default(false)
+  Negocios                   Negocios    @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_validacion_negocios")
+  Modulos                    Modulos     @relation(fields: [modulo_id], references: [id_modulo], onDelete: NoAction, onUpdate: NoAction, map: "fk_validacion_modulos")
+}
+
+model Resultados_Analisis_Completo {
+  resultado_id               Int         @id @default(autoincrement())
+  negocio_id                 Int
+  modulo_id                  Int
+  analisis_id                Int
+  fecha_analisis             DateTime?   @default(now()) @db.Timestamp(6)
+  costos_analizados          Json?       // Array completo de costos analizados
+  riesgos_detectados         Json?       // Array completo de riesgos detectados
+  plan_accion                Json?       // Array completo del plan de acción
+  resumen_analisis           Json?       // Resumen general del análisis
+  estado_guardado            String      @default("guardado") @db.VarChar(50) // guardado, procesando, error
+  Negocios                   Negocios    @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_resultados_completos_negocios")
+  Modulos                    Modulos     @relation(fields: [modulo_id], references: [id_modulo], onDelete: NoAction, onUpdate: NoAction, map: "fk_resultados_completos_modulos")
+  Analisis_IA                Analisis_IA @relation(fields: [analisis_id], references: [analisis_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_resultados_completos_analisis")
+  @@unique([negocio_id, modulo_id, analisis_id], map: "unique_resultado_completo")
+}
+
+model Usuarios {
+  usuario_id      Int        @id @default(autoincrement())
+  nombre_completo String     @db.VarChar(150)
+  email           String     @unique @db.VarChar(255)
+  password_hash   String     @db.VarChar(255)
+  fecha_registro  DateTime?  @default(now()) @db.Timestamp(6)
+  Negocios        Negocios[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model tamano_negocio {
+  id_tamano     Int        @id @default(autoincrement())
+  tamano_nombre String     @db.VarChar(50)
+  Negocios      Negocios[]
+}

@@ -1,0 +1,17 @@
+services:
+
+  # Frontend React
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: krakedev_frontend
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    networks:
+      - krakedev_network
+
+networks:
+  krakedev_network:
+    driver: bridge

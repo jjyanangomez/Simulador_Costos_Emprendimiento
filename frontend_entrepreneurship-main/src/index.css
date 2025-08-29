@@ -1,0 +1,220 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+/* ===================================
+   SISTEMA DE ESTILOS ESTANDARIZADO
+   brand-styles.css
+   
+   Este archivo contiene únicamente los "Design Tokens" (variables CSS)
+   y los estilos base del proyecto. Sirve como la única fuente de verdad
+   para la configuración de Tailwind CSS.
+   =================================== */
+
+/* ===================================
+   1. DESIGN TOKENS (VARIABLES CSS)
+   =================================== */
+:root {
+  /* === PALETA DE COLORES PRINCIPAL === */
+
+  /* Primary - Azul corporativo */
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  /* Color principal */
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+
+  /* Secondary - Verde éxito */
+  --color-secondary-50: #f0fdf4;
+  --color-secondary-100: #dcfce7;
+  --color-secondary-200: #bbf7d0;
+  --color-secondary-300: #86efac;
+  --color-secondary-400: #4ade80;
+  --color-secondary-500: #22c55e;
+  /* Color secundario */
+  --color-secondary-600: #16a34a;
+  --color-secondary-700: #15803d;
+  --color-secondary-800: #166534;
+  --color-secondary-900: #14532d;
+
+  /* Accent - Amarillo/Naranja */
+  --color-accent-50: #fefce8;
+  --color-accent-100: #fef9c3;
+  --color-accent-200: #fef08a;
+  --color-accent-300: #fde047;
+  --color-accent-400: #facc15;
+  --color-accent-500: #eab308;
+  --color-accent-600: #ca8a04;
+  --color-accent-700: #a16207;
+  --color-accent-800: #854d0e;
+  --color-accent-900: #713f12; /* Color de acento */
+
+  /* Neutral - Grises */
+  --color-neutral-50: #f9fafb;
+  --color-neutral-100: #f3f4f6;
+  --color-neutral-200: #e5e7eb;
+  --color-neutral-300: #d1d5db;
+  --color-neutral-400: #9ca3af;
+  --color-neutral-600: #4b5563;
+  --color-neutral-700: #374151;
+  --color-neutral-800: #1f2937;
+  --color-neutral-900: #111827;
+
+  /* === ESTADOS === */
+  --color-success: #10b981;
+  --color-success-dark: #047857;
+  --color-error: #ef4444;
+  --color-error-light: #fecaca;
+  --color-error-dark: #b91c1c;
+
+  /* === TIPOGRAFÍA === */
+  --font-family-brand: "Inter", system-ui, -apple-system, sans-serif;
+
+  /* === ESPACIADO (Opcional, si quieres referenciarlos en tailwind.config) === */
+  --spacing-sm: 0.5rem;
+  /* 8px */
+  --spacing-md: 1rem;
+  /* 16px */
+  --spacing-lg: 1.5rem;
+  /* 24px */
+  --spacing-xl: 2rem;
+  /* 32px */
+
+  /* === BORDES Y SOMBRAS === */
+  --border-radius-brand: 0.75rem;
+  /* 12px */
+
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* ===================================
+   2. ESTILOS BASE Y GLOBALES
+   =================================== */
+
+/* Estilos aplicados a todo el documento por defecto */
+body {
+  font-family: var(--font-family-brand);
+  background-color: var(--color-neutral-50);
+  color: var(--color-neutral-800);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Animación de entrada para las pantallas cargadas dinámicamente */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.path-line {
+  position: absolute;
+  /* background: linear-gradient(45deg, #3b82f6, #10b981); */
+  border-radius: 4px;
+  z-index: -1;
+}
+
+.path-completed {
+  background: linear-gradient(45deg, #10b981, #059669);
+}
+
+.path-current {
+  background: linear-gradient(45deg, #3b82f6, #2563eb);
+  animation: pulse-path 2s infinite;
+}
+
+.path-locked {
+  background: hsl(219, 11%, 65%);
+  /* Tailwind's gray-400 */
+}
+
+@keyframes pulse-path {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.module {
+  position: relative;
+  z-index: 0;
+}
+
+.path-h-fw {
+  top: 50%;
+  left: 100%;
+  width: 1.5rem;
+  height: 4px;
+}
+
+.path-h-bw {
+  top: 50%;
+  left: -1.5rem;
+  width: 1.5rem;
+  height: 4px;
+}
+
+.path-v {
+  top: 100%;
+  left: 50%;
+  width: 4px;
+  height: 1.5rem;
+}
+
+.screen-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.video-container {
+  position: relative;
+  padding-bottom: 56.25%;
+  height: 0;
+  overflow: hidden;
+  border-radius: 15px;
+  background: #000;
+}
+
+.video-container iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.ai-analysis {
+  background: linear-gradient(135deg, #e0f7fa, #bbdefb);
+}
+
+.nav-buttons {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+.category-title {
+  border-bottom: 2px solid #4361ee;
+  padding-bottom: 5px;
+  margin-bottom: 15px;
+  color: #4361ee;
+}

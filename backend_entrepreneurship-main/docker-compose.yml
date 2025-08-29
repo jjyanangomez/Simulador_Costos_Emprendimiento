@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  # Base de datos PostgreSQL
+  postgres:
+    image: ${POSTGRES_IMAGE}
+    container_name: ${POSTGRES_CONTAINER_NAME}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./prisma/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - krakedev_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # pgAdmin para gestión de base de datos
+  pgadmin:
+    image: ${PGADMIN_IMAGE}
+    container_name: ${PGADMIN_CONTAINER_NAME}
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "${PGADMIN_PORT}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - krakedev_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Backend NestJS
+  backend:
+    build:
+      context: .
+      dockerfile: dockerfile
+    container_name: ${BACKEND_CONTAINER_NAME}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL}
+      PORT: ${BACKEND_PORT}
+      GOOGLE_AI_API_KEY: ${GOOGLE_AI_API_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+    ports:
+      - "${BACKEND_PORT}:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - krakedev_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["sh", "-c", "echo '🚀 [ENTRYPOINT] Iniciando aplicación...' && npx prisma migrate deploy && npx prisma generate && echo '🌱 Ejecutando seed...' && npm run seed && echo '🚀 [ENTRYPOINT] Iniciando aplicación NestJS...' && exec node dist/src/main"]
+
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  krakedev_network:
+    driver: bridge

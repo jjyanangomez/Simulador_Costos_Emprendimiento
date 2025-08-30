@@ -1,11 +1,8 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
 import { LoginPage } from "../../../../core/auth/infrastructure/ui/LoginPage";
-<<<<<<< Updated upstream
 import { ResetPasswordPage } from "../../../../core/auth/infrastructure/ui/ResetPasswordPage";
 import { ModuleContentPage } from "../../../../core/modules/infrastructure/ui/pages/ModuleContentPage";
-=======
->>>>>>> Stashed changes
 import { ProtectedRoute } from "../../../../core/auth/infrastructure/components/ProtectedRoute";
 import { DashboardPage } from "../../../../core/dashboard/infrastructure/ui/DashboardPage";
 import { BusinessSetupPage } from "../../../../core/business-setup/infrastructure/ui/BusinessSetupPage";
@@ -39,7 +36,6 @@ export const Routes = {
     },
   },
 
-<<<<<<< Updated upstream
   resetPassword: {
     path: "/reset-password",
     layout: React.Fragment,
@@ -54,10 +50,20 @@ export const Routes = {
 
   businesses: {
     path: "/businesses",
-=======
+    layout: ({ children }: { children: React.ReactNode }) => (
+      <ProtectedRoute>{children}</ProtectedRoute>
+    ),
+    routes: {
+      index: {
+        title: "Negocios",
+        path: "",
+        element: ModuleContentPage,
+      },
+    },
+  },
+
   dashboard: {
     path: "/dashboard",
->>>>>>> Stashed changes
     layout: ({ children }: { children: React.ReactNode }) => (
       <ProtectedRoute>{children}</ProtectedRoute>
     ),

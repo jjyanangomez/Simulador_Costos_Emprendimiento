@@ -8,7 +8,8 @@ import {
   TrendingUp, 
   BarChart3, 
   LogOut,
-  User
+  User,
+  DollarSign
 } from 'lucide-react';
 
 const navigationItems = [
@@ -16,6 +17,7 @@ const navigationItems = [
   { path: '/business-setup', label: 'Configuración', icon: Building2 },
   { path: '/fixed-costs', label: 'Costos Fijos', icon: Calculator },
   { path: '/variable-costs', label: 'Costos Variables', icon: Package },
+  { path: '/precio-venta', label: 'Precio de Venta', icon: DollarSign },
   { path: '/profitability-analysis', label: 'Análisis', icon: TrendingUp },
   { path: '/results', label: 'Resultados', icon: BarChart3 },
 ];

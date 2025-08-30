@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { NotificationType } from '../components/FloatingNotification';
+import type { NotificationType } from '../components/FloatingNotification';
 
 interface NotificationState {
   message: string;

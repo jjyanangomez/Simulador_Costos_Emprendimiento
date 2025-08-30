@@ -3,6 +3,7 @@ import { AppController } from '../app.controller';
 import { AppService } from '../app.service';
 import { PrismaModule } from '../shared/database/prisma.module';
 
+
 // Controllers
 import { UserController } from './controllers/user.controller';
 import { BusinessController } from './controllers/business.controller';
@@ -20,6 +21,7 @@ import { AiController } from './controllers/ai.controller';
 import { CostosFijosController } from './controllers/costos-fijos.controller';
 import { ProductosController, RecetasController } from './controllers/productos.controller';
 import { AnalisisController } from './controllers/analisis.controller';
+import { ProductoPrecioVentaController } from '../simulator/bussiness/controllers/producto-precio-venta.controller';
 
 // Services
 import { UserService } from './services/user.service';
@@ -38,6 +40,7 @@ import { AiService } from './services/ai.service';
 import { CostosFijosService } from './services/costos-fijos.service';
 import { ProductosService } from './services/productos.service';
 import { AnalisisService } from './services/analisis.service';
+import { ProductoPrecioVentaService } from '../simulator/bussiness/services/producto-precio-venta.service';
 
 // Mappers
 import { AnalisisIAMapper } from './models/mappers/analysis_ai.mapper';
@@ -75,6 +78,7 @@ import { ModuloMapper } from './models/mappers/modulo.mapper';
     ProductosController,
     RecetasController,
     AnalisisController,
+    ProductoPrecioVentaController,
   ],
   providers: [
     AppService,
@@ -94,6 +98,7 @@ import { ModuloMapper } from './models/mappers/modulo.mapper';
     CostosFijosService,
     ProductosService,
     AnalisisService,
+    ProductoPrecioVentaService,
     // Mappers
     AnalisisIAMapper,
     UserMapper,

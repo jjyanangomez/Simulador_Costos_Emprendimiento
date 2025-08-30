@@ -1,6 +1,93 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Estilos personalizados para efectos visuales */
+@layer utilities {
+  .shadow-3xl {
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  }
+  
+  .backdrop-blur-md {
+    backdrop-filter: blur(12px);
+  }
+  
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  .animate-bounce-slow {
+    animation: bounce 2s infinite;
+  }
+}
+
+/* Efectos de gradiente personalizados */
+@layer components {
+  .gradient-text {
+    @apply bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent;
+  }
+  
+  .glass-effect {
+    @apply bg-white/60 backdrop-blur-sm border border-white/20;
+  }
+  
+  .modern-button {
+    @apply relative px-12 py-6 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 
+           text-white font-bold text-xl rounded-2xl shadow-2xl transform transition-all duration-300
+           hover:scale-105 hover:shadow-3xl active:scale-95;
+  }
+}
+
+/* Animaciones personalizadas */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Efectos de partículas */
+.particle {
+  position: absolute;
+  border-radius: 50%;
+  animation: float 4s ease-in-out infinite;
+}
+
+.particle:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.particle:nth-child(2) {
+  animation-delay: 1s;
+}
+
+.particle:nth-child(3) {
+  animation-delay: 2s;
+}
+
+/* Responsive design mejorado */
+@media (max-width: 640px) {
+  .modern-button {
+    @apply px-8 py-4 text-lg;
+  }
+}
+
+/* Efectos de hover mejorados */
+.hover-lift {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
 /* ===================================
    SISTEMA DE ESTILOS ESTANDARIZADO
    brand-styles.css

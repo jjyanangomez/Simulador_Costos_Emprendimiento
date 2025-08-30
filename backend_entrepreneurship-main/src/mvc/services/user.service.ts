@@ -1,9 +1,10 @@
-import { Injectable, NotFoundException, ConflictException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../shared/database/prisma.service';
 import { UserMapper } from '../models/mappers/user.mapper';
 import { User } from '../models/entities/user.entity';
 import { CreateUserDto } from '../models/dto/create-user.dto';
 import { LoginUserDto } from '../models/dto/login-user.dto';
+import { ResetPasswordDto } from '../models/dto/reset-password.dto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -77,5 +78,32 @@ export class UserService {
     const usersPrisma = await this.prisma.usuarios.findMany();
     const mappedUsers = usersPrisma.map(this.mapper.toDomain);
     return mappedUsers;
+  }
+
+  async resetPassword(resetPasswordDto: ResetPasswordDto): Promise<{ message: string }> {
+    // Verificar que las contraseñas coincidan
+    if (resetPasswordDto.newPassword !== resetPasswordDto.confirmPassword) {
+      throw new BadRequestException('Las contraseñas no coinciden');
+    }
+
+    // Buscar usuario por email
+    const userPrisma = await this.prisma.usuarios.findUnique({
+      where: { email: resetPasswordDto.email },
+    });
+
+    if (!userPrisma) {
+      throw new NotFoundException('Usuario no encontrado con ese email');
+    }
+
+    // Hashear la nueva contraseña
+    const newPasswordHash = await bcrypt.hash(resetPasswordDto.newPassword, 10);
+
+    // Actualizar la contraseña en la base de datos
+    await this.prisma.usuarios.update({
+      where: { email: resetPasswordDto.email },
+      data: { password_hash: newPasswordHash },
+    });
+
+    return { message: 'Contraseña actualizada exitosamente' };
   }
 }

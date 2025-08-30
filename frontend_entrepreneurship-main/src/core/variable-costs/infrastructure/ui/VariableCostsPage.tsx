@@ -15,6 +15,7 @@ import {
   ShoppingBag,
   Edit
 } from 'lucide-react';
+import { SeccionPrecioVenta } from './components/SeccionPrecioVenta';
 import toast from 'react-hot-toast';
 
 import type { Ingredient, Product, AdditionalCost } from '../../domain/types';
@@ -28,6 +29,9 @@ export function VariableCostsPage() {
   const [additionalCosts, setAdditionalCosts] = useState<AdditionalCost[]>([]);
   const [businessType, setBusinessType] = useState('restaurante'); // Por defecto, se puede obtener del contexto
   const [showSummary, setShowSummary] = useState(false);
+  const [aiValidations, setAiValidations] = useState<Record<number, any[]>>({});
+  // ID del negocio (en un caso real esto vendría del contexto o props)
+  const negocioId = 1; // Temporal - debería venir del contexto de autenticación
 
   // Función helper para calcular el costo de un producto
   const calculateProductCost = (product: Product): number => {
@@ -291,6 +295,153 @@ export function VariableCostsPage() {
           businessType={businessType}
           onCostsChange={handleAdditionalCostsChange}
         />
+
+        {/* Nueva sección: Precio de Venta */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+            <Package className="w-5 h-5 mr-2 text-primary-600" />
+            Precio de Venta y Análisis de Rentabilidad
+          </h2>
+
+          {/* Resumen de costos totales */}
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6 mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">Resumen de Costos Totales</h3>
+            <div className="grid grid-cols-3 gap-6 text-center">
+              <div>
+                <p className="text-2xl font-bold text-blue-600">
+                  ${products.reduce((sum, product) => sum + calculateProductCost(product), 0).toFixed(2)}
+                </p>
+                <p className="text-sm text-gray-600">Costos de Productos</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-purple-600">
+                  ${additionalCosts.reduce((sum, cost) => sum + (cost.amount || 0), 0).toFixed(2)}
+                </p>
+                <p className="text-sm text-gray-600">Costos Adicionales</p>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-green-600">
+                  ${(products.reduce((sum, product) => sum + calculateProductCost(product), 0) + 
+                     additionalCosts.reduce((sum, cost) => sum + (cost.amount || 0), 0)).toFixed(2)}
+                </p>
+                <p className="text-sm text-gray-600">Costo Total General</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Lista de productos con precios y ganancias */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Análisis de Productos y Precios</h3>
+            
+            {products.map((product, index) => {
+              const totalCost = calculateProductCost(product);
+              const suggestedPrice = totalCost * 1.5; // IA sugiere 50% de margen
+              const actualPrice = product.sellingPrice || 0;
+              const profit = actualPrice - totalCost;
+              const profitMargin = actualPrice > 0 ? ((profit / actualPrice) * 100) : 0;
+
+              return (
+                <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-lg font-semibold text-gray-900">{product.name}</h4>
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      profitMargin >= 30 ? 'bg-green-100 text-green-800' :
+                      profitMargin >= 20 ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      Margen: {profitMargin.toFixed(1)}%
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div className="bg-white p-3 rounded-lg border border-gray-200">
+                      <span className="text-gray-600 font-medium">Costo Total:</span>
+                      <p className="font-semibold text-red-600 text-lg">${totalCost.toFixed(2)}</p>
+                    </div>
+                    
+                    <div className="bg-white p-3 rounded-lg border border-gray-200">
+                      <span className="text-gray-600 font-medium">Precio Sugerido (IA):</span>
+                      <p className="font-semibold text-blue-600 text-lg">${suggestedPrice.toFixed(2)}</p>
+                      <p className="text-xs text-gray-500">Margen 50%</p>
+                    </div>
+                    
+                    <div className="bg-white p-3 rounded-lg border border-gray-200">
+                      <span className="text-gray-600 font-medium">Precio de Venta:</span>
+                      <p className="font-semibold text-green-600 text-lg">${actualPrice.toFixed(2)}</p>
+                      <p className="text-xs text-gray-500">Establecido por ti</p>
+                    </div>
+                    
+                    <div className="bg-white p-3 rounded-lg border border-gray-200">
+                      <span className="text-gray-600 font-medium">Ganancia:</span>
+                      <p className="font-semibold text-green-600 text-lg">${profit.toFixed(2)}</p>
+                      <p className="text-xs text-gray-500">Por unidad</p>
+                    </div>
+                  </div>
+
+                  {/* Análisis de rentabilidad */}
+                  <div className="mt-3 p-3 bg-white rounded-lg border border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Análisis de Rentabilidad:</span>
+                      <div className="flex items-center space-x-2">
+                        {profitMargin >= 30 ? (
+                          <span className="text-green-600 text-sm">✅ Excelente rentabilidad</span>
+                        ) : profitMargin >= 20 ? (
+                          <span className="text-yellow-600 text-sm">⚠️ Rentabilidad moderada</span>
+                        ) : (
+                          <span className="text-red-600 text-sm">❌ Baja rentabilidad</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Resumen general de ganancias */}
+          <div className="mt-6 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-6 border border-green-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">Resumen General de Ganancias</h3>
+            <div className="grid grid-cols-3 gap-6 text-center">
+              <div>
+                <p className="text-2xl font-bold text-green-600">
+                  ${products.reduce((sum, product) => {
+                    const totalCost = calculateProductCost(product);
+                    const profit = (product.sellingPrice || 0) - totalCost;
+                    return sum + profit;
+                  }, 0).toFixed(2)}
+                </p>
+                <p className="text-sm text-gray-600">Ganancia Total por Productos</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-blue-600">
+                  ${products.reduce((sum, product) => sum + (product.sellingPrice || 0), 0).toFixed(2)}
+                </p>
+                <p className="text-sm text-gray-600">Ingresos Totales</p>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-purple-600">
+                  {(() => {
+                    const totalCosts = products.reduce((sum, product) => 
+                      sum + calculateProductCost(product), 0
+                    );
+                    const totalRevenue = products.reduce((sum, product) => 
+                      sum + (product.sellingPrice || 0), 0
+                    );
+                    const totalProfit = totalRevenue - totalCosts;
+                    const totalMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100) : 0;
+                    return totalMargin.toFixed(1) + '%';
+                  })()}
+                </p>
+                <p className="text-sm text-gray-600">Margen Total del Negocio</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 🆕 NUEVA SECCIÓN: Precio de Venta */}
+        <div className="mt-8">
+          <SeccionPrecioVenta negocioId={negocioId} />
+        </div>
 
         {/* Botones de acción */}
         <div className="flex justify-between items-center pt-6">

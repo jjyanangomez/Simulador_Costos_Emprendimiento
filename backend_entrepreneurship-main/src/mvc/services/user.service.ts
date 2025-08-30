@@ -32,6 +32,7 @@ export class UserService {
         nombre_completo: createDto.nombreCompleto,
         email: createDto.email,
         password_hash: passwordHash,
+        fecha_nacimiento: createDto.fechaNacimiento || new Date('1990-01-01'), // Campo requerido
       },
     });
 

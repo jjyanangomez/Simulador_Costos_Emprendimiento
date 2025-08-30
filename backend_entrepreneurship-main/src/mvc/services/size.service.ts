@@ -14,7 +14,7 @@ export class SizeService {
   ) {}
 
   async create(createDto: CreateSizeDto): Promise<Size> {
-    const sizePrisma = await this.prisma.tamano_negocio.create({
+    const sizePrisma = await this.prisma.tamanosNegocio.create({
       data: {
         tamano_nombre: createDto.sizeName,
       },
@@ -23,12 +23,12 @@ export class SizeService {
   }
 
   async findAll(): Promise<Size[]> {
-    const sizesPrisma = await this.prisma.tamano_negocio.findMany();
+    const sizesPrisma = await this.prisma.tamanosNegocio.findMany();
     return sizesPrisma.map(this.mapper.toDomain);
   }
 
   async findById(id: number): Promise<Size> {
-    const sizePrisma = await this.prisma.tamano_negocio.findUnique({
+    const sizePrisma = await this.prisma.tamanosNegocio.findUnique({
       where: { id_tamano: id },
     });
 
@@ -42,7 +42,7 @@ export class SizeService {
     // Verificamos que el registro exista antes de intentar actualizar
     await this.findById(id);
 
-    const updatedSizePrisma = await this.prisma.tamano_negocio.update({
+    const updatedSizePrisma = await this.prisma.tamanosNegocio.update({
       where: { id_tamano: id },
       data: {
         tamano_nombre: updateDto.sizeName,
@@ -55,7 +55,7 @@ export class SizeService {
     // Verificamos que el registro exista para lanzar un 404 si no es así
     await this.findById(id);
 
-    await this.prisma.tamano_negocio.delete({
+    await this.prisma.tamanosNegocio.delete({
       where: { id_tamano: id },
     });
   }

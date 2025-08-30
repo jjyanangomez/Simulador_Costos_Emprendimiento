@@ -20,21 +20,21 @@ async function main() {
   await prisma.modulos.deleteMany();
   await prisma.aprendizaje.deleteMany();
   await prisma.estados.deleteMany();
-  await prisma.tamano_negocio.deleteMany();
+  await prisma.tamanosNegocio.deleteMany();
 
   // Crear tamaños de negocio
   console.log('📏 Creando tamaños de negocio...');
   const tamanos = await Promise.all([
-    prisma.tamano_negocio.create({
+    prisma.tamanosNegocio.create({
       data: { tamano_nombre: 'Microempresa (1-10 empleados)' }
     }),
-    prisma.tamano_negocio.create({
+    prisma.tamanosNegocio.create({
       data: { tamano_nombre: 'Pequeña empresa (11-50 empleados)' }
     }),
-    prisma.tamano_negocio.create({
+    prisma.tamanosNegocio.create({
       data: { tamano_nombre: 'Mediana empresa (51-200 empleados)' }
     }),
-    prisma.tamano_negocio.create({
+    prisma.tamanosNegocio.create({
       data: { tamano_nombre: 'Gran empresa (200+ empleados)' }
     })
   ]);
@@ -104,6 +104,35 @@ async function main() {
     }
   });
 
+  // Crear sectores
+  console.log('🏭 Creando sectores...');
+  const sectores = await Promise.all([
+    prisma.sectores.create({
+      data: {
+        nombre_sector: 'Restaurantes y Cafeterías',
+        descripcion: 'Sector de alimentos y bebidas'
+      }
+    }),
+    prisma.sectores.create({
+      data: {
+        nombre_sector: 'Comercio Minorista',
+        descripcion: 'Venta de productos al consumidor final'
+      }
+    }),
+    prisma.sectores.create({
+      data: {
+        nombre_sector: 'Ferreterías y Construcción',
+        descripcion: 'Materiales y herramientas de construcción'
+      }
+    }),
+    prisma.sectores.create({
+      data: {
+        nombre_sector: 'Salud y Farmacias',
+        descripcion: 'Productos y servicios de salud'
+      }
+    })
+  ]);
+
   // Crear usuarios de prueba
   console.log('👥 Creando usuarios de prueba...');
   const passwordHash = await bcrypt.hash('123456', 10);
@@ -113,21 +142,24 @@ async function main() {
       data: {
         nombre_completo: 'María González',
         email: 'maria@ejemplo.com',
-        password_hash: passwordHash
+        password_hash: passwordHash,
+        fecha_nacimiento: new Date('1990-01-01')
       }
     }),
     prisma.usuarios.create({
       data: {
         nombre_completo: 'Carlos Rodríguez',
         email: 'carlos@ejemplo.com',
-        password_hash: passwordHash
+        password_hash: passwordHash,
+        fecha_nacimiento: new Date('1985-05-15')
       }
     }),
     prisma.usuarios.create({
       data: {
         nombre_completo: 'Ana Martínez',
         email: 'ana@ejemplo.com',
-        password_hash: passwordHash
+        password_hash: passwordHash,
+        fecha_nacimiento: new Date('1992-08-20')
       }
     })
   ]);
@@ -138,46 +170,71 @@ async function main() {
     prisma.negocios.create({
       data: {
         usuario_id: usuarios[0].usuario_id,
-        tipo_negocio: 'Restaurante',
+        sector_id: sectores[0].sector_id,
         nombre_negocio: 'La Buena Mesa',
-        ubicacion: 'Quito - Centro Histórico',
-        id_tamano: tamanos[0].id_tamano
+        ubicacion_exacta: 'Quito - Centro Histórico',
+        id_tamano: tamanos[0].id_tamano,
+        aforo_personas: 50,
+        inversion_inicial: 25000,
+        capital_propio: 15000,
+        capital_prestamo: 10000,
+        tasa_interes: 8.5
       }
     }),
     prisma.negocios.create({
       data: {
         usuario_id: usuarios[0].usuario_id,
-        tipo_negocio: 'Cafetería',
+        sector_id: sectores[0].sector_id,
         nombre_negocio: 'El Rincón del Café',
-        ubicacion: 'Quito - La Mariscal',
-        id_tamano: tamanos[0].id_tamano
+        ubicacion_exacta: 'Quito - La Mariscal',
+        id_tamano: tamanos[0].id_tamano,
+        aforo_personas: 30,
+        inversion_inicial: 15000,
+        capital_propio: 10000,
+        capital_prestamo: 5000,
+        tasa_interes: 7.5
       }
     }),
     prisma.negocios.create({
       data: {
         usuario_id: usuarios[1].usuario_id,
-        tipo_negocio: 'Tienda de Ropa',
+        sector_id: sectores[1].sector_id,
         nombre_negocio: 'Modas Elegantes',
-        ubicacion: 'Guayaquil - Centro Comercial',
-        id_tamano: tamanos[1].id_tamano
+        ubicacion_exacta: 'Guayaquil - Centro Comercial',
+        id_tamano: tamanos[1].id_tamano,
+        aforo_personas: 100,
+        inversion_inicial: 50000,
+        capital_propio: 30000,
+        capital_prestamo: 20000,
+        tasa_interes: 9.0
       }
     }),
     prisma.negocios.create({
       data: {
         usuario_id: usuarios[2].usuario_id,
-        tipo_negocio: 'Ferretería',
+        sector_id: sectores[2].sector_id,
         nombre_negocio: 'El Tornillo Feliz',
-        ubicacion: 'Cuenca - Centro',
-        id_tamano: tamanos[0].id_tamano
+        ubicacion_exacta: 'Cuenca - Centro',
+        id_tamano: tamanos[0].id_tamano,
+        aforo_personas: 80,
+        inversion_inicial: 30000,
+        capital_propio: 20000,
+        capital_prestamo: 10000,
+        tasa_interes: 8.0
       }
     }),
     prisma.negocios.create({
       data: {
         usuario_id: usuarios[2].usuario_id,
-        tipo_negocio: 'Farmacia',
+        sector_id: sectores[3].sector_id,
         nombre_negocio: 'Farmacia del Pueblo',
-        ubicacion: 'Manta - Malecón',
-        id_tamano: tamanos[1].id_tamano
+        ubicacion_exacta: 'Manta - Malecón',
+        id_tamano: tamanos[1].id_tamano,
+        aforo_personas: 60,
+        inversion_inicial: 40000,
+        capital_propio: 25000,
+        capital_prestamo: 15000,
+        tasa_interes: 8.5
       }
     })
   ]);

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MainLayout } from '../../../../shared/infrastructure/components/MainLayout';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
@@ -15,6 +15,8 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useCategorias } from '../hooks/useCategorias';
+import { CategoriaSelector } from '../components/CategoriaSelector';
 
 // Esquema de validación para costos fijos
 const fixedCostSchema = z.object({
@@ -29,18 +31,7 @@ const fixedCostSchema = z.object({
 
 type FixedCostForm = z.infer<typeof fixedCostSchema>;
 
-const costCategories = [
-  { value: 'arriendo', label: 'Arriendo/Renta del Local', icon: '🏠', description: 'Pago mensual del local' },
-  { value: 'personal', label: 'Sueldos y Salarios', icon: '👥', description: 'Remuneraciones del personal' },
-  { value: 'seguridad-social', label: 'Seguridad Social (IESS)', icon: '🛡️', description: 'Aportes patronales' },
-  { value: 'servicios', label: 'Servicios Básicos', icon: '⚡', description: 'Luz, agua, internet, etc.' },
-  { value: 'publicidad', label: 'Publicidad y Marketing', icon: '📢', description: 'Campañas publicitarias' },
-  { value: 'licencias', label: 'Licencias y Permisos', icon: '📋', description: 'Permisos municipales' },
-  { value: 'seguros', label: 'Seguros', icon: '🔒', description: 'Seguros empresariales' },
-  { value: 'mantenimiento', label: 'Mantenimiento', icon: '🔧', description: 'Local y equipos' },
-  { value: 'transporte', label: 'Transporte y Logística', icon: '🚚', description: 'Gastos de transporte' },
-  { value: 'otros', label: 'Otros Costos', icon: '📦', description: 'Costos adicionales' },
-];
+// Las categorías ahora se cargan dinámicamente desde el backend
 
 const frequencyOptions = [
   { value: 'mensual', label: 'Mensual', multiplier: 1 },
@@ -52,53 +43,51 @@ const frequencyOptions = [
 const validateCostWithAI = (cost: any) => {
   const validations = [];
   
-  // Validaciones basadas en rangos típicos del mercado ecuatoriano
-  const marketRanges: Record<string, { min: number; max: number; unit: string }> = {
-    arriendo: { min: 800, max: 5000, unit: 'USD/mes' },
-    personal: { min: 425, max: 2000, unit: 'USD/mes por empleado' },
-    'seguridad-social': { min: 50, max: 200, unit: 'USD/mes por empleado' },
-    servicios: { min: 150, max: 800, unit: 'USD/mes' },
-    publicidad: { min: 200, max: 2000, unit: 'USD/mes' },
-    licencias: { min: 50, max: 500, unit: 'USD/año' },
-    seguros: { min: 100, max: 800, unit: 'USD/mes' },
-    mantenimiento: { min: 100, max: 1000, unit: 'USD/mes' },
-    transporte: { min: 200, max: 1500, unit: 'USD/mes' },
-  };
-
-  const range = marketRanges[cost.category];
-  if (range) {
-    const monthlyAmount = cost.frequency === 'mensual' ? cost.amount : 
-                         cost.frequency === 'semestral' ? cost.amount / 6 : 
-                         cost.amount / 12;
-    
-    if (monthlyAmount < range.min) {
-      validations.push({
-        type: 'warning',
-        message: `El costo parece estar por debajo del rango típico del mercado (${range.min}-${range.max} ${range.unit})`,
-        severity: 'low'
-      });
-    } else if (monthlyAmount > range.max) {
-      validations.push({
-        type: 'error',
-        message: `El costo está significativamente por encima del rango típico del mercado (${range.min}-${range.max} ${range.unit})`,
-        severity: 'high'
-      });
-    } else {
-      validations.push({
-        type: 'success',
-        message: 'El costo está dentro del rango esperado del mercado',
-        severity: 'none'
-      });
-    }
+  // Validaciones básicas para cualquier categoría
+  const monthlyAmount = cost.frequency === 'mensual' ? cost.amount : 
+                       cost.frequency === 'semestral' ? cost.amount / 6 : 
+                       cost.amount / 12;
+  
+  // Validaciones generales de mercado ecuatoriano
+  if (monthlyAmount < 50) {
+    validations.push({
+      type: 'warning',
+      message: 'El costo mensual parece estar por debajo del rango típico del mercado',
+      severity: 'low'
+    });
+  } else if (monthlyAmount > 10000) {
+    validations.push({
+      type: 'error',
+      message: 'El costo mensual está significativamente por encima del rango típico del mercado',
+      severity: 'high'
+    });
+  } else {
+    validations.push({
+      type: 'success',
+      message: 'El costo está dentro del rango esperado del mercado',
+      severity: 'none'
+    });
   }
 
   return validations;
+};
+
+// Función de utilidad para formatear números de manera segura
+const formatCurrency = (value: number | string | undefined): string => {
+  const numValue = Number(value);
+  if (!Number.isFinite(numValue) || numValue < 0) {
+    return '0.00';
+  }
+  return numValue.toFixed(2);
 };
 
 export function FixedCostsPage() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [aiValidations, setAiValidations] = useState<Record<number, any[]>>({});
+  
+  // Hook para cargar categorías desde el backend
+  const { categorias, loading: categoriasLoading, error: categoriasError } = useCategorias();
 
   const {
     control,
@@ -114,7 +103,7 @@ export function FixedCostsPage() {
           description: 'Renta mensual del local comercial',
           amount: 1200,
           frequency: 'mensual',
-          category: 'arriendo',
+          category: '',
         }
       ],
     },
@@ -133,9 +122,16 @@ export function FixedCostsPage() {
     let totalYearly = 0;
 
     watchedCosts.forEach((cost) => {
-      let monthlyAmount = cost.amount;
-      if (cost.frequency === 'semestral') monthlyAmount = cost.amount / 6;
-      if (cost.frequency === 'anual') monthlyAmount = cost.amount / 12;
+      // Asegurar que amount sea un número válido
+      const amount = Number(cost.amount) || 0;
+      
+      if (isNaN(amount) || amount <= 0) {
+        return; // Saltar costos inválidos
+      }
+
+      let monthlyAmount = amount;
+      if (cost.frequency === 'semestral') monthlyAmount = amount / 6;
+      if (cost.frequency === 'anual') monthlyAmount = amount / 12;
       
       totalMonthly += monthlyAmount;
       totalYearly += monthlyAmount * 12;
@@ -146,10 +142,26 @@ export function FixedCostsPage() {
 
   const { totalMonthly, totalYearly } = calculateTotals();
 
+  // Limpiar validaciones cuando cambien los costos
+  useEffect(() => {
+    // Limpiar validaciones de costos que ya no existen
+    const currentIndexes = Object.keys(watchedCosts).map(Number);
+    setAiValidations(prev => {
+      const newValidations: Record<number, any[]> = {};
+      currentIndexes.forEach(index => {
+        if (prev[index]) {
+          newValidations[index] = prev[index];
+        }
+      });
+      return newValidations;
+    });
+  }, [watchedCosts.length]);
+
   // Validar costo con IA
   const validateCost = (index: number) => {
     const cost = watchedCosts[index];
-    if (cost.name && cost.amount && cost.category) {
+    if (cost?.name && cost?.amount && cost?.category && 
+        Number.isFinite(Number(cost.amount)) && Number(cost.amount) > 0) {
       const validations = validateCostWithAI(cost);
       setAiValidations(prev => ({ ...prev, [index]: validations }));
     }
@@ -221,6 +233,26 @@ export function FixedCostsPage() {
             Ingresa todos los costos fijos mensuales de tu negocio. 
             La IA validará que estén dentro de rangos razonables del mercado.
           </p>
+          
+          {/* Estado de carga de categorías */}
+          {categoriasLoading && (
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center justify-center space-x-2 text-blue-800">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <span>Cargando categorías desde el servidor...</span>
+              </div>
+            </div>
+          )}
+          
+          {/* Error de carga de categorías */}
+          {categoriasError && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-center justify-center space-x-2 text-red-800">
+                <AlertTriangle className="w-4 h-4" />
+                <span>Error al cargar categorías: {categoriasError}</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Resumen de costos */}
@@ -228,11 +260,15 @@ export function FixedCostsPage() {
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Resumen de Costos</h2>
           <div className="grid md:grid-cols-3 gap-6">
             <div className="text-center">
-              <div className="text-2xl font-bold text-primary-600">${totalMonthly.toFixed(2)}</div>
+              <div className="text-2xl font-bold text-primary-600">
+                ${formatCurrency(totalMonthly)}
+              </div>
               <div className="text-sm text-gray-600">Total Mensual</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-secondary-600">${totalYearly.toFixed(2)}</div>
+              <div className="text-2xl font-bold text-secondary-600">
+                ${formatCurrency(totalYearly)}
+              </div>
               <div className="text-sm text-gray-600">Total Anual</div>
             </div>
             <div className="text-center">
@@ -319,23 +355,18 @@ export function FixedCostsPage() {
                         name={`costs.${index}.category`}
                         control={control}
                         render={({ field }) => (
-                          <select
-                            {...field}
-                            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
-                              errors.costs?.[index]?.category ? 'border-red-500' : 'border-gray-300'
-                            }`}
-                            onChange={(e) => {
-                              field.onChange(e);
+                          <CategoriaSelector
+                            value={field.value || ''}
+                            onChange={(value) => {
+                              field.onChange(value);
                               validateCost(index);
                             }}
-                          >
-                            <option value="">Selecciona una categoría</option>
-                            {costCategories.map((category) => (
-                              <option key={category.value} value={category.value}>
-                                {category.icon} {category.label}
-                              </option>
-                            ))}
-                          </select>
+                            onBlur={field.onBlur}
+                            error={!!errors.costs?.[index]?.category}
+                            categorias={categorias}
+                            loading={categoriasLoading}
+                            placeholder="Selecciona una categoría"
+                          />
                         )}
                       />
                       {errors.costs?.[index]?.category && (
@@ -343,7 +374,7 @@ export function FixedCostsPage() {
                       )}
                       {watchedCosts[index]?.category && (
                         <p className="mt-2 text-sm text-gray-600">
-                          {costCategories.find(c => c.value === watchedCosts[index].category)?.description}
+                          {categorias.find(c => c.nombre === watchedCosts[index].category)?.descripcion}
                         </p>
                       )}
                     </div>
@@ -362,6 +393,13 @@ export function FixedCostsPage() {
                             type="number"
                             min="0.01"
                             step="0.01"
+                            value={field.value || ''}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              // Convertir a número o mantener string vacío para validación
+                              const numValue = value === '' ? '' : Number(value);
+                              field.onChange(numValue);
+                            }}
                             className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
                               errors.costs?.[index]?.amount ? 'border-red-500' : 'border-gray-300'
                             }`}

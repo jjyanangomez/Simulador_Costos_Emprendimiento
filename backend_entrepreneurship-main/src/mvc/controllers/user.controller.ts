@@ -103,6 +103,22 @@ export class UserController {
     }
   }
 
+  @Get('check-email/:email')
+  @ApiOperation({ summary: 'Verificar si existe un usuario con el email proporcionado' })
+  @ApiResponse({ status: 200, description: 'Verificación completada.' })
+  async checkEmail(@Param('email') email: string) {
+    try {
+      const result = await this.userService.findByEmail(email);
+      return result;
+    } catch (error) {
+      console.error('💥 [BACKEND] Error al verificar email:', error);
+      throw new HttpException(
+        'Error al verificar el email',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Restablecer contraseña de usuario' })

@@ -81,6 +81,19 @@ export class UserService {
     return mappedUsers;
   }
 
+  async findByEmail(email: string): Promise<{ exists: boolean; message: string }> {
+    const userPrisma = await this.prisma.usuarios.findUnique({
+      where: { email: email },
+    });
+
+    if (userPrisma) {
+      console.log('Usuario encontrado:', userPrisma);
+      return { exists: true, message: 'Usuario encontrado' };
+    } else {
+      return { exists: false, message: 'Usuario no encontrado con ese email' };
+    }
+  }
+
   async resetPassword(resetPasswordDto: ResetPasswordDto): Promise<{ message: string }> {
     // Verificar que las contraseñas coincidan
     if (resetPasswordDto.newPassword !== resetPasswordDto.confirmPassword) {

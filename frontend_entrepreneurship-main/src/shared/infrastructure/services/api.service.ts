@@ -228,6 +228,13 @@ class ApiService {
     return this.request('/tamanos-negocio');
   }
 
+  // Método público para peticiones GET
+  async get<T = any>(endpoint: string): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, {
+      method: 'GET',
+    });
+  }
+
   // Método genérico para manejar errores
   handleError(error: any, customMessage?: string): void {
     const message = customMessage || error.message || 'Error desconocido';

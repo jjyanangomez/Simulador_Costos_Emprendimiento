@@ -1,11 +1,12 @@
 import { useState, useEffect, createContext, useContext } from 'react';
-import { AuthRepositoryApi, type User, type LoginRequest, type RegisterRequest } from '../adapters/AuthRepositoryApi';
+import { AuthRepositoryApi, type User, type LoginRequest, type RegisterRequest, type ResetPasswordRequest } from '../adapters/AuthRepositoryApi';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (credentials: LoginRequest) => Promise<User>;
   register: (userData: RegisterRequest) => Promise<User>;
+  resetPassword: (data: ResetPasswordRequest) => Promise<{ message: string }>;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -66,6 +67,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const resetPassword = async (data: ResetPasswordRequest): Promise<{ message: string }> => {
+    try {
+      const result = await authRepository.resetPassword(data);
+      return result;
+    } catch (error) {
+      throw error;
+    }
+  };
+
   const logout = () => {
     setUser(null);
     localStorage.removeItem('user');
@@ -76,6 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     login,
     register,
+    resetPassword,
     logout,
     isAuthenticated: !!user,
   };

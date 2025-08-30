@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FaEye,
@@ -10,6 +10,9 @@ import {
 } from "react-icons/fa";
 import { useApiState } from "../../../../shared/infrastructure/hooks/useApiState";
 import { useAuth } from "../hooks/useAuth";
+import { useNotification } from "../../../../shared/infrastructure/hooks/useNotification";
+import { FloatingNotification } from "../../../../shared/infrastructure/components/FloatingNotification";
+import { WelcomeAnimation } from "../../../../shared/infrastructure/components/WelcomeAnimation";
 
 interface LoginData {
   email: string;
@@ -26,6 +29,7 @@ interface RegisterData {
 export function LoginForm() {
   const navigate = useNavigate();
   const { login, register } = useAuth();
+  const { notification, showError, hideNotification } = useNotification();
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -42,7 +46,36 @@ export function LoginForm() {
     confirmPassword: "",
   });
 
+  const [showWelcomeAnimation, setShowWelcomeAnimation] = useState(false);
+  const [welcomeUserName, setWelcomeUserName] = useState("");
+
   const { loading, error, execute } = useApiState();
+
+  // Mostrar notificación flotante cuando haya un error
+  useEffect(() => {
+    if (error) {
+      showError(error);
+    }
+  }, [error, showError]);
+
+  // Función para manejar cuando la animación de bienvenida se complete
+  const handleWelcomeComplete = () => {
+    setShowWelcomeAnimation(false);
+    
+    // Si estamos en modo registro, cambiar a modo login y limpiar formulario
+    if (!isLoginMode) {
+      setIsLoginMode(true);
+      setRegisterData({
+        nombreCompleto: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+      });
+    } else {
+      // Si es login, navegar al sistema
+      navigate("/businesses");
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,8 +85,11 @@ export function LoginForm() {
         email: loginData.email,
         password: loginData.password,
       });
-      alert(`¡Bienvenido ${user.nombreCompleto}!`);
-      navigate("/businesses");
+      
+      // Mostrar animación de bienvenida
+      setWelcomeUserName(user.nombreCompleto);
+      setShowWelcomeAnimation(true);
+      
       return user;
     });
 
@@ -66,29 +102,23 @@ export function LoginForm() {
     e.preventDefault();
 
     if (registerData.password !== registerData.confirmPassword) {
-      alert("Las contraseñas no coinciden");
+      showError("Las contraseñas no coinciden");
       return;
     }
 
-    const result = await execute(async () => {
-      const user = await register({
-        nombreCompleto: registerData.nombreCompleto,
-        email: registerData.email,
-        password: registerData.password,
+          const result = await execute(async () => {
+        const user = await register({
+          nombreCompleto: registerData.nombreCompleto,
+          email: registerData.email,
+          password: registerData.password,
+        });
+        
+        // Mostrar animación de bienvenida para el registro
+        setWelcomeUserName(user.nombreCompleto);
+        setShowWelcomeAnimation(true);
+        
+        return user;
       });
-      alert(
-        `¡Usuario registrado exitosamente! Bienvenido ${user.nombreCompleto}`
-      );
-      // Cambiar a modo login después del registro exitoso
-      setIsLoginMode(true);
-      setRegisterData({
-        nombreCompleto: "",
-        email: "",
-        password: "",
-        confirmPassword: "",
-      });
-      return user;
-    });
 
     if (result) {
       console.log("✅ [FRONTEND] Registro completado:", result);
@@ -140,14 +170,12 @@ export function LoginForm() {
                 <div className="w-8 h-8 bg-white rounded-full"></div>
               </div>
               <p className="text-gray-200 text-sm font-medium tracking-wider uppercase mb-4">
-                SHOWCASE
+                EQUIPO DINAMITA
               </p>
-              <h1 className="text-4xl lg:text-5xl font-bold leading-tight mb-4">
-                Login Page Examples to Inspire Your Next Design
-              </h1>
+              <h1 className="text-3x1 lg:text-5xl font-bold leading-tight mb-4">
+              Dominio Empresarial: Desbloquea Tu Potencial Emprendedor</h1>
               <p className="text-gray-100 text-lg opacity-90">
-                Descubre el poder de un diseño moderno y atractivo para tu
-                experiencia de usuario
+              Simula, aprende y crece como emprendedor con herramientas realistas que te permitirán tomar decisiones clave en el mundo de los negocios.
               </p>
             </div>
           </div>
@@ -170,7 +198,11 @@ export function LoginForm() {
                   ? "Accede a tu cuenta para continuar"
                   : "Crea tu cuenta para comenzar"}
               </p>
+              
+
             </div>
+
+
 
             {/* Formulario */}
             <form
@@ -337,47 +369,46 @@ export function LoginForm() {
             </form>
 
             {/* Cambiar modo */}
-            <div className="mt-6 text-center">
+            <div className="mt-6 text-center space-y-3">
               <button
                 type="button"
                 onClick={toggleMode}
-                className="text-blue-600 hover:text-blue-700 font-medium underline transition-colors duration-200"
+                className="text-blue-600 hover:text-blue-700 font-medium underline transition-colors duration-200 block w-full"
               >
                 {isLoginMode
                   ? "¿No tienes cuenta? Regístrate aquí"
                   : "¿Ya tienes cuenta? Inicia sesión aquí"}
               </button>
+              
+              {/* Botón de olvidé mi contraseña (solo en modo login) */}
+              {isLoginMode && (
+                <button
+                  type="button"
+                  onClick={() => navigate("/reset-password")}
+                  className="text-gray-600 hover:text-gray-700 font-medium underline transition-colors duration-200 block w-full"
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
+              )}
             </div>
-
-            {/* Datos de prueba */}
-            {isLoginMode && (
-              <div className="mt-6 p-4 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl border border-gray-100">
-                <h3 className="text-sm font-medium text-gray-700 mb-2">
-                  Datos de Prueba:
-                </h3>
-                <div className="text-xs text-gray-600 space-y-1">
-                  <p>
-                    <strong>Email:</strong> maria@ejemplo.com
-                  </p>
-                  <p>
-                    <strong>Contraseña:</strong> 123456
-                  </p>
-                  <p className="text-gray-500 mt-2">
-                    También puedes usar: carlos@ejemplo.com o ana@ejemplo.com
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Error */}
-            {error && (
-              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl">
-                <p className="text-red-600 text-sm">{error}</p>
-              </div>
-            )}
           </div>
         </div>
       </div>
+      
+      {/* Animación de bienvenida */}
+      <WelcomeAnimation
+        userName={welcomeUserName}
+        isVisible={showWelcomeAnimation}
+        onComplete={handleWelcomeComplete}
+      />
+      
+      {/* Notificación flotante */}
+      <FloatingNotification
+        message={notification.message}
+        type={notification.type}
+        isVisible={notification.isVisible}
+        onClose={hideNotification}
+      />
     </div>
   );
 }

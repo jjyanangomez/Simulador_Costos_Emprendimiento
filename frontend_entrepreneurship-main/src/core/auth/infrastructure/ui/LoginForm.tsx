@@ -138,7 +138,7 @@ export function LoginForm() {
 
   const handleWelcomeComplete = () => {
     setShowWelcomeAnimation(false);
-    navigate('/dashboard');
+    navigate('/home');
   };
 
   // Mostrar notificaciones de error del useApiState

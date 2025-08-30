@@ -4,6 +4,7 @@ import { FaCheckCircle, FaUser, FaRocket, FaStar } from 'react-icons/fa';
 interface WelcomeAnimationProps {
   userName: string;
   onComplete: () => void;
+  redirectTo?: string;
 }
 
 export function WelcomeAnimation({ userName, onComplete }: WelcomeAnimationProps) {
@@ -54,7 +55,7 @@ export function WelcomeAnimation({ userName, onComplete }: WelcomeAnimationProps
   }, [onComplete]);
 
   return (
-    <div className={`fixed inset-0 bg-gradient-to-br from-blue-900/90 via-purple-900/90 to-indigo-900/90 backdrop-blur-md z-50 flex items-center justify-center transition-all duration-700 ${showAnimation ? 'opacity-100' : 'opacity-0'}`}>
+    <div className={`fixed inset-0 bg-gradient-to-br from-blue-900 via-gray-700 to-blue-800 backdrop-blur-md z-50 flex items-center justify-center transition-all duration-700 ${showAnimation ? 'opacity-100' : 'opacity-0'}`}>
       {/* Partículas de fondo animadas */}
       <div className="absolute inset-0 overflow-hidden">
         {[...Array(20)].map((_, i) => (
@@ -71,18 +72,18 @@ export function WelcomeAnimation({ userName, onComplete }: WelcomeAnimationProps
         ))}
       </div>
 
-      <div className="relative z-10 bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl p-10 max-w-lg w-full mx-4 text-center border border-white/20">
+      <div className="relative z-10 bg-white/10 backdrop-blur-sm rounded-3xl shadow-2xl p-10 max-w-lg w-full mx-4 text-center border border-white/20">
         {/* Icono principal con animación mejorada */}
         <div className="mb-8">
-          <div className={`relative w-24 h-24 bg-gradient-to-br from-blue-500 via-purple-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6 transform transition-all duration-1000 ${showAnimation ? 'scale-100 rotate-0' : 'scale-0 rotate-180'}`}>
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full animate-ping opacity-20"></div>
+          <div className={`relative w-24 h-24 bg-gradient-to-br from-gray-400 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-6 transform transition-all duration-1000 ${showAnimation ? 'scale-100 rotate-0' : 'scale-0 rotate-180'}`}>
+            <div className="absolute inset-0 bg-gradient-to-br from-gray-400 to-blue-500 rounded-full animate-ping opacity-20"></div>
             <FaUser className="text-white text-4xl relative z-10" />
           </div>
         </div>
 
         {/* Texto de bienvenida con animación mejorada */}
         <div className={`transition-all duration-700 transform ${showText ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-8 opacity-0 scale-95'}`}>
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
+          <h2 className="text-3xl font-bold text-white mb-3">
             ¡Bienvenido!
           </h2>
         </div>
@@ -90,8 +91,8 @@ export function WelcomeAnimation({ userName, onComplete }: WelcomeAnimationProps
         {/* Nombre del usuario con efecto especial */}
         <div className={`transition-all duration-700 transform delay-300 ${showName ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-8 opacity-0 scale-95'}`}>
           <div className="relative">
-            <p className="text-2xl font-bold text-gray-800 mb-4">{userName}</p>
-            <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-20 h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"></div>
+            <p className="text-2xl font-bold text-white mb-4">{userName}</p>
+            <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-20 h-1 bg-gradient-to-r from-gray-400 to-blue-500 rounded-full"></div>
           </div>
         </div>
 
@@ -112,27 +113,27 @@ export function WelcomeAnimation({ userName, onComplete }: WelcomeAnimationProps
             <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
               <FaCheckCircle className="text-white text-2xl" />
             </div>
-            <p className="text-green-600 font-semibold text-lg">Acceso exitoso</p>
-            <p className="text-gray-500 text-sm mt-1">Redirigiendo al sistema...</p>
+            <p className="text-white font-semibold text-lg">Acceso exitoso</p>
+            <p className="text-gray-300 text-sm mt-1">Redirigiendo al sistema...</p>
           </div>
         </div>
 
         {/* Barra de progreso mejorada */}
         <div className="mt-8">
-          <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+          <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
             <div 
-              className="bg-gradient-to-r from-blue-500 via-purple-500 to-indigo-500 h-3 rounded-full transition-all duration-300 ease-out relative"
+              className="bg-gradient-to-r from-blue-600 to-gray-600 h-3 rounded-full transition-all duration-300 ease-out relative"
               style={{ width: `${progress}%` }}
             >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
             </div>
           </div>
-          <p className="text-gray-600 text-sm mt-2 font-medium">{progress}% completado</p>
+          <p className="text-gray-300 text-sm mt-2 font-medium">{progress}% completado</p>
         </div>
 
         {/* Icono de cohete flotante */}
         <div className={`absolute -top-4 -right-4 transition-all duration-1000 delay-1000 ${showAnimation ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-          <div className="w-12 h-12 bg-gradient-to-br from-orange-400 to-red-500 rounded-full flex items-center justify-center animate-bounce">
+          <div className="w-12 h-12 bg-gradient-to-br from-orange-400 to-red-500 rounded-full flex items-center justify-center animate-bounce shadow-lg">
             <FaRocket className="text-white text-lg" />
           </div>
         </div>

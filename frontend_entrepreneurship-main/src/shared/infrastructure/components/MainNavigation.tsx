@@ -9,7 +9,8 @@ import {
   BarChart3, 
   LogOut,
   User,
-  DollarSign
+  DollarSign,
+  Target
 } from 'lucide-react';
 
 const navigationItems = [
@@ -19,6 +20,7 @@ const navigationItems = [
   { path: '/variable-costs', label: 'Costos Variables', icon: Package },
   { path: '/precio-venta', label: 'Precio de Venta', icon: DollarSign },
   { path: '/profitability-analysis', label: 'Análisis', icon: TrendingUp },
+  { path: '/equilibrium', label: 'Equilibrio', icon: Target },
   { path: '/results', label: 'Resultados', icon: BarChart3 },
 ];
 

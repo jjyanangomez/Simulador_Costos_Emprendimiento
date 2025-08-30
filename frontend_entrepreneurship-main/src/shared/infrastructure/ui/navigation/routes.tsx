@@ -10,6 +10,7 @@ import { FixedCostsPage } from "../../../../core/fixed-costs/infrastructure/ui/F
 import { VariableCostsPage } from "../../../../core/variable-costs/infrastructure/ui/VariableCostsPage";
 import { ProfitabilityAnalysisPage } from "../../../../core/profitability-analysis/infrastructure/ui/ProfitabilityAnalysisPage";
 import { ResultsPage } from "../../../../core/results/infrastructure/ui/ResultsPage";
+import { EquilibriumPage } from "../../../../core/equilibrium/infrastructure/ui/EquilibriumPage";
 import { HomePage } from "../../../../core/home/infrastructure/ui/HomePage";
 import { PrecioVentaPage } from "../../../../core/precio-venta/infrastructure/ui/PrecioVentaPage";
 
@@ -39,7 +40,7 @@ export const Routes = {
       },
     },
   },
-  
+
   auth: {
     path: "/login",
     layout: React.Fragment,
@@ -172,6 +173,20 @@ export const Routes = {
         title: "Precio de Venta",
         path: "",
         element: PrecioVentaPage,
+      },
+    },
+  },
+
+  equilibrium: {
+    path: "/equilibrium",
+    layout: ({ children }: { children: React.ReactNode }) => (
+      <ProtectedRoute>{children}</ProtectedRoute>
+    ),
+    routes: {
+      index: {
+        title: "Punto de Equilibrio",
+        path: "",
+        element: EquilibriumPage,
       },
     },
   },

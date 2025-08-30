@@ -37,7 +37,20 @@ export class ApiClient {
       const response = await fetch(url, config);
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        // Intentar extraer el mensaje de error del cuerpo de la respuesta
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        
+        try {
+          const errorData = await response.json();
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          }
+        } catch (parseError) {
+          // Si no se puede parsear el error, usar el mensaje por defecto
+          console.warn('No se pudo parsear el mensaje de error del backend');
+        }
+        
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();

@@ -1,8 +1,18 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { FaEye, FaEyeSlash, FaUser, FaEnvelope, FaLock, FaUserPlus } from 'react-icons/fa';
-import { useApiState } from '../../../../shared/infrastructure/hooks/useApiState';
-import { useAuth } from '../hooks/useAuth';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  FaEye,
+  FaEyeSlash,
+  FaUser,
+  FaEnvelope,
+  FaLock,
+  FaUserPlus,
+} from "react-icons/fa";
+import { useApiState } from "../../../../shared/infrastructure/hooks/useApiState";
+import { useAuth } from "../hooks/useAuth";
+import { useNotification } from "../../../../shared/infrastructure/hooks/useNotification";
+import { FloatingNotification } from "../../../../shared/infrastructure/components/FloatingNotification";
+import { WelcomeAnimation } from "../../../../shared/infrastructure/components/WelcomeAnimation";
 
 interface LoginData {
   email: string;
@@ -19,78 +29,107 @@ interface RegisterData {
 export function LoginForm() {
   const navigate = useNavigate();
   const { login, register } = useAuth();
+  const { notification, showError, hideNotification } = useNotification();
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
+
   const [loginData, setLoginData] = useState<LoginData>({
-    email: '',
-    password: ''
+    email: "",
+    password: "",
   });
-  
+
   const [registerData, setRegisterData] = useState<RegisterData>({
-    nombreCompleto: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
+    nombreCompleto: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
   });
+
+  const [showWelcomeAnimation, setShowWelcomeAnimation] = useState(false);
+  const [welcomeUserName, setWelcomeUserName] = useState("");
 
   const { loading, error, execute } = useApiState();
 
+  // Mostrar notificación flotante cuando haya un error
+  useEffect(() => {
+    if (error) {
+      showError(error);
+    }
+  }, [error, showError]);
+
+  // Función para manejar cuando la animación de bienvenida se complete
+  const handleWelcomeComplete = () => {
+    setShowWelcomeAnimation(false);
+    
+    // Si estamos en modo registro, cambiar a modo login y limpiar formulario
+    if (!isLoginMode) {
+      setIsLoginMode(true);
+      setRegisterData({
+        nombreCompleto: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+      });
+    } else {
+      // Si es login, navegar al sistema
+      navigate("/businesses");
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const result = await execute(async () => {
       const user = await login({
         email: loginData.email,
-        password: loginData.password
+        password: loginData.password,
       });
-      alert(`¡Bienvenido ${user.nombreCompleto}!`);
-      navigate('/businesses');
+      
+      // Mostrar animación de bienvenida
+      setWelcomeUserName(user.nombreCompleto);
+      setShowWelcomeAnimation(true);
+      
       return user;
     });
-    
+
     if (result) {
-      console.log('✅ [FRONTEND] Login completado:', result);
+      console.log("✅ [FRONTEND] Login completado:", result);
     }
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (registerData.password !== registerData.confirmPassword) {
-      alert('Las contraseñas no coinciden');
+      showError("Las contraseñas no coinciden");
       return;
     }
-    
-    const result = await execute(async () => {
-      const user = await register({
-        nombreCompleto: registerData.nombreCompleto,
-        email: registerData.email,
-        password: registerData.password
+
+          const result = await execute(async () => {
+        const user = await register({
+          nombreCompleto: registerData.nombreCompleto,
+          email: registerData.email,
+          password: registerData.password,
+        });
+        
+        // Mostrar animación de bienvenida para el registro
+        setWelcomeUserName(user.nombreCompleto);
+        setShowWelcomeAnimation(true);
+        
+        return user;
       });
-      alert(`¡Usuario registrado exitosamente! Bienvenido ${user.nombreCompleto}`);
-      // Cambiar a modo login después del registro exitoso
-      setIsLoginMode(true);
-      setRegisterData({
-        nombreCompleto: '',
-        email: '',
-        password: '',
-        confirmPassword: ''
-      });
-      return user;
-    });
-    
+
     if (result) {
-      console.log('✅ [FRONTEND] Registro completado:', result);
+      console.log("✅ [FRONTEND] Registro completado:", result);
     }
   };
 
   const handleInputChange = (field: string, value: string) => {
     if (isLoginMode) {
-      setLoginData(prev => ({ ...prev, [field]: value }));
+      setLoginData((prev) => ({ ...prev, [field]: value }));
     } else {
-      setRegisterData(prev => ({ ...prev, [field]: value }));
+      setRegisterData((prev) => ({ ...prev, [field]: value }));
     }
   };
 
@@ -98,12 +137,12 @@ export function LoginForm() {
     setIsLoginMode(!isLoginMode);
     setShowPassword(false);
     setShowConfirmPassword(false);
-    setLoginData({ email: '', password: '' });
+    setLoginData({ email: "", password: "" });
     setRegisterData({
-      nombreCompleto: '',
-      email: '',
-      password: '',
-      confirmPassword: ''
+      nombreCompleto: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
     });
   };
 
@@ -116,7 +155,7 @@ export function LoginForm() {
         <div className="absolute bottom-20 right-20 w-24 h-24 bg-blue-400 rounded-full opacity-30 animate-bounce"></div>
         <div className="absolute top-1/2 left-10 w-16 h-16 bg-gray-300 rounded-full opacity-25 animate-ping"></div>
         <div className="absolute bottom-1/3 right-10 w-20 h-20 bg-blue-300 rounded-full opacity-20 animate-pulse"></div>
-        
+
         {/* Líneas onduladas */}
         <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-transparent via-gray-200 to-transparent opacity-10 transform -skew-y-6"></div>
         <div className="absolute bottom-0 right-0 w-full h-32 bg-gradient-to-l from-transparent via-blue-200 to-transparent opacity-10 transform skew-y-6"></div>
@@ -130,12 +169,13 @@ export function LoginForm() {
               <div className="w-16 h-16 bg-gradient-to-br from-gray-400 to-blue-500 rounded-full flex items-center justify-center mb-6">
                 <div className="w-8 h-8 bg-white rounded-full"></div>
               </div>
-              <p className="text-gray-200 text-sm font-medium tracking-wider uppercase mb-4">SHOWCASE</p>
-              <h1 className="text-4xl lg:text-5xl font-bold leading-tight mb-4">
-                Login Page Examples to Inspire Your Next Design
-              </h1>
+              <p className="text-gray-200 text-sm font-medium tracking-wider uppercase mb-4">
+                EQUIPO DINAMITA
+              </p>
+              <h1 className="text-3x1 lg:text-5xl font-bold leading-tight mb-4">
+              Dominio Empresarial: Desbloquea Tu Potencial Emprendedor</h1>
               <p className="text-gray-100 text-lg opacity-90">
-                Descubre el poder de un diseño moderno y atractivo para tu experiencia de usuario
+              Simula, aprende y crece como emprendedor con herramientas realistas que te permitirán tomar decisiones clave en el mundo de los negocios.
               </p>
             </div>
           </div>
@@ -147,26 +187,35 @@ export function LoginForm() {
             {/* Elementos decorativos del formulario */}
             <div className="absolute -top-4 -right-4 w-8 h-8 bg-gradient-to-br from-gray-400 to-blue-500 rounded-full"></div>
             <div className="absolute -bottom-4 -left-4 w-6 h-6 bg-gradient-to-br from-blue-400 to-gray-500 rounded-full"></div>
-            
+
             {/* Header del formulario */}
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-gray-800 mb-2">
-                {isLoginMode ? 'LOGIN' : 'REGISTER'}
+                {isLoginMode ? "LOGIN" : "REGISTER"}
               </h2>
               <p className="text-gray-600">
-                {isLoginMode 
-                  ? 'Accede a tu cuenta para continuar' 
-                  : 'Crea tu cuenta para comenzar'
-                }
+                {isLoginMode
+                  ? "Accede a tu cuenta para continuar"
+                  : "Crea tu cuenta para comenzar"}
               </p>
+              
+
             </div>
 
+
+
             {/* Formulario */}
-            <form onSubmit={isLoginMode ? handleLogin : handleRegister} className="space-y-6">
+            <form
+              onSubmit={isLoginMode ? handleLogin : handleRegister}
+              className="space-y-6"
+            >
               {/* Nombre completo (solo en registro) */}
               {!isLoginMode && (
                 <div>
-                  <label htmlFor="nombreCompleto" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label
+                    htmlFor="nombreCompleto"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
                     Nombre Completo
                   </label>
                   <div className="relative">
@@ -177,7 +226,9 @@ export function LoginForm() {
                       type="text"
                       id="nombreCompleto"
                       value={registerData.nombreCompleto}
-                      onChange={(e) => handleInputChange('nombreCompleto', e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("nombreCompleto", e.target.value)
+                      }
                       className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                       placeholder="Ingresa tu nombre completo"
                       required
@@ -188,7 +239,10 @@ export function LoginForm() {
 
               {/* Email */}
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="email"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Email
                 </label>
                 <div className="relative">
@@ -199,7 +253,7 @@ export function LoginForm() {
                     type="email"
                     id="email"
                     value={isLoginMode ? loginData.email : registerData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    onChange={(e) => handleInputChange("email", e.target.value)}
                     className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                     placeholder="ejemplo@correo.com"
                     required
@@ -209,7 +263,10 @@ export function LoginForm() {
 
               {/* Contraseña */}
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Contraseña
                 </label>
                 <div className="relative">
@@ -217,12 +274,20 @@ export function LoginForm() {
                     <FaLock className="h-5 w-5 text-blue-400" />
                   </div>
                   <input
-                    type={showPassword ? 'text' : 'password'}
+                    type={showPassword ? "text" : "password"}
                     id="password"
-                    value={isLoginMode ? loginData.password : registerData.password}
-                    onChange={(e) => handleInputChange('password', e.target.value)}
+                    value={
+                      isLoginMode ? loginData.password : registerData.password
+                    }
+                    onChange={(e) =>
+                      handleInputChange("password", e.target.value)
+                    }
                     className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                    placeholder={isLoginMode ? "Ingresa tu contraseña" : "Mínimo 6 caracteres"}
+                    placeholder={
+                      isLoginMode
+                        ? "Ingresa tu contraseña"
+                        : "Mínimo 6 caracteres"
+                    }
                     required
                     minLength={isLoginMode ? undefined : 6}
                   />
@@ -243,7 +308,10 @@ export function LoginForm() {
               {/* Confirmar Contraseña (solo en registro) */}
               {!isLoginMode && (
                 <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label
+                    htmlFor="confirmPassword"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
                     Confirmar Contraseña
                   </label>
                   <div className="relative">
@@ -251,10 +319,12 @@ export function LoginForm() {
                       <FaLock className="h-5 w-5 text-blue-400" />
                     </div>
                     <input
-                      type={showConfirmPassword ? 'text' : 'password'}
+                      type={showConfirmPassword ? "text" : "password"}
                       id="confirmPassword"
                       value={registerData.confirmPassword}
-                      onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("confirmPassword", e.target.value)
+                      }
                       className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                       placeholder="Confirma tu contraseña"
                       required
@@ -262,7 +332,9 @@ export function LoginForm() {
                     <button
                       type="button"
                       className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      onClick={() =>
+                        setShowConfirmPassword(!showConfirmPassword)
+                      }
                     >
                       {showConfirmPassword ? (
                         <FaEyeSlash className="h-5 w-5 text-blue-400" />
@@ -297,40 +369,46 @@ export function LoginForm() {
             </form>
 
             {/* Cambiar modo */}
-            <div className="mt-6 text-center">
+            <div className="mt-6 text-center space-y-3">
               <button
                 type="button"
                 onClick={toggleMode}
-                className="text-blue-600 hover:text-blue-700 font-medium underline transition-colors duration-200"
+                className="text-blue-600 hover:text-blue-700 font-medium underline transition-colors duration-200 block w-full"
               >
-                {isLoginMode 
-                  ? '¿No tienes cuenta? Regístrate aquí' 
-                  : '¿Ya tienes cuenta? Inicia sesión aquí'
-                }
+                {isLoginMode
+                  ? "¿No tienes cuenta? Regístrate aquí"
+                  : "¿Ya tienes cuenta? Inicia sesión aquí"}
               </button>
+              
+              {/* Botón de olvidé mi contraseña (solo en modo login) */}
+              {isLoginMode && (
+                <button
+                  type="button"
+                  onClick={() => navigate("/reset-password")}
+                  className="text-gray-600 hover:text-gray-700 font-medium underline transition-colors duration-200 block w-full"
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
+              )}
             </div>
-
-            {/* Datos de prueba */}
-            {isLoginMode && (
-              <div className="mt-6 p-4 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl border border-gray-100">
-                <h3 className="text-sm font-medium text-gray-700 mb-2">Datos de Prueba:</h3>
-                <div className="text-xs text-gray-600 space-y-1">
-                  <p><strong>Email:</strong> maria@ejemplo.com</p>
-                  <p><strong>Contraseña:</strong> 123456</p>
-                  <p className="text-gray-500 mt-2">También puedes usar: carlos@ejemplo.com o ana@ejemplo.com</p>
-                </div>
-              </div>
-            )}
-
-            {/* Error */}
-            {error && (
-              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl">
-                <p className="text-red-600 text-sm">{error}</p>
-              </div>
-            )}
           </div>
         </div>
       </div>
+      
+      {/* Animación de bienvenida */}
+      <WelcomeAnimation
+        userName={welcomeUserName}
+        isVisible={showWelcomeAnimation}
+        onComplete={handleWelcomeComplete}
+      />
+      
+      {/* Notificación flotante */}
+      <FloatingNotification
+        message={notification.message}
+        type={notification.type}
+        isVisible={notification.isVisible}
+        onClose={hideNotification}
+      />
     </div>
   );
 }

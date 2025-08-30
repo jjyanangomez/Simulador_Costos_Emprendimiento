@@ -235,6 +235,14 @@ class ApiService {
     });
   }
 
+  // Método público para peticiones PUT
+  async put<T = any>(endpoint: string, data: any): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
   // Método genérico para manejar errores
   handleError(error: any, customMessage?: string): void {
     const message = customMessage || error.message || 'Error desconocido';

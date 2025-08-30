@@ -109,7 +109,7 @@ model Productos {
   // Relaciones
   Negocios              Negocios           @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
   CategoriasProducto    CategoriasProducto @relation(fields: [categoria_id], references: [categoria_id], onDelete: NoAction, onUpdate: NoAction)
-  UnidadMedida          UnidadMedida       @relation(fields: [unidad_medida_id], references: [unidad_medida_id], onDelete: NoAction, onUpdate: NoAction)
+  UnidadMedida          UnidadMedida       @relation(fields: [unidad_medida_id], references: [unidad_id], onDelete: NoAction, onUpdate: NoAction)
   
   // Relaciones con recetas
   Recetas               Recetas[]
@@ -385,7 +385,7 @@ model Resultados_Precio_Venta {
   
   // Relaciones
   Negocios                   Negocios    @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
-  Modulos                    Modulos     @relation(fields: [modulo_id], references: [modulo_id], onDelete: NoAction, onUpdate: NoAction)
+  Modulos                    Modulos     @relation(fields: [modulo_id], references: [id_modulo], onDelete: NoAction, onUpdate: NoAction)
   Sectores                   Sectores    @relation(fields: [sector_id], references: [sector_id], onDelete: NoAction, onUpdate: NoAction)
   Analisis_IA                Analisis_IA @relation(fields: [analisis_id], references: [analisis_id], onDelete: NoAction, onUpdate: NoAction)
   
@@ -419,7 +419,7 @@ model Resultados_Punto_Equilibrio {
   
   // Relaciones
   Negocios                   Negocios    @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
-  Modulos                    Modulos     @relation(fields: [modulo_id], references: [modulo_id], onDelete: NoAction, onUpdate: NoAction)
+  Modulos                    Modulos     @relation(fields: [modulo_id], references: [id_modulo], onDelete: NoAction, onUpdate: NoAction)
   Sectores                   Sectores    @relation(fields: [sector_id], references: [sector_id], onDelete: NoAction, onUpdate: NoAction)
   Analisis_IA                Analisis_IA @relation(fields: [analisis_id], references: [analisis_id], onDelete: NoAction, onUpdate: NoAction)
   

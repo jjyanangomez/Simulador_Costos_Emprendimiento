@@ -11,6 +11,7 @@ import { VariableCostsPage } from "../../../../core/variable-costs/infrastructur
 import { ProfitabilityAnalysisPage } from "../../../../core/profitability-analysis/infrastructure/ui/ProfitabilityAnalysisPage";
 import { ResultsPage } from "../../../../core/results/infrastructure/ui/ResultsPage";
 import { EquilibriumPage } from "../../../../core/equilibrium/infrastructure/ui/EquilibriumPage";
+import { HomePage } from "../../../../core/home/infrastructure/ui/HomePage";
 
 export const Routes = {
   home: {
@@ -20,11 +21,25 @@ export const Routes = {
       redirect: {
         title: "",
         path: "",
-        element: () => <Navigate to="/login" />,
+        element: () => <Navigate to="/home" />,
       },
     },
   },
-  
+
+  mainHome: {
+    path: "/home",
+    layout: ({ children }: { children: React.ReactNode }) => (
+      <ProtectedRoute>{children}</ProtectedRoute>
+    ),
+    routes: {
+      index: {
+        title: "Inicio",
+        path: "",
+        element: HomePage,
+      },
+    },
+  },
+
   auth: {
     path: "/login",
     layout: React.Fragment,

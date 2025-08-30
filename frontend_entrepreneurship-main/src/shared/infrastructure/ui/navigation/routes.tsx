@@ -1,12 +1,15 @@
 import React from "react";
-import { BusinessesPage } from "../../../../core/businesses/infrastructure/ui/BusinessesPage";
-import { BusinessForm } from "../../../../core/businesses/infrastructure/ui/BusinessForm";
-import { LearningPathPage } from "../../../../core/learning-path/infrastructure/ui/pages/LearningPathPage";
 import { Navigate } from "react-router-dom";
 import { LoginPage } from "../../../../core/auth/infrastructure/ui/LoginPage";
 import { ResetPasswordPage } from "../../../../core/auth/infrastructure/ui/ResetPasswordPage";
 import { ModuleContentPage } from "../../../../core/modules/infrastructure/ui/pages/ModuleContentPage";
 import { ProtectedRoute } from "../../../../core/auth/infrastructure/components/ProtectedRoute";
+import { DashboardPage } from "../../../../core/dashboard/infrastructure/ui/DashboardPage";
+import { BusinessSetupPage } from "../../../../core/business-setup/infrastructure/ui/BusinessSetupPage";
+import { FixedCostsPage } from "../../../../core/fixed-costs/infrastructure/ui/FixedCostsPage";
+import { VariableCostsPage } from "../../../../core/variable-costs/infrastructure/ui/VariableCostsPage";
+import { ProfitabilityAnalysisPage } from "../../../../core/profitability-analysis/infrastructure/ui/ProfitabilityAnalysisPage";
+import { ResultsPage } from "../../../../core/results/infrastructure/ui/ResultsPage";
 
 export const Routes = {
   home: {
@@ -20,12 +23,13 @@ export const Routes = {
       },
     },
   },
+  
   auth: {
     path: "/login",
     layout: React.Fragment,
     routes: {
       login: {
-        title: "",
+        title: "Iniciar Sesión",
         path: "",
         element: LoginPage,
       },
@@ -50,36 +54,95 @@ export const Routes = {
       <ProtectedRoute>{children}</ProtectedRoute>
     ),
     routes: {
-      businessesList: {
-        title: "Lista de Negocios",
-        path: "", // Se renderiza en /businesses
-        element: BusinessesPage,
-      },
-      businessesForm: {
-        title: "Formulario de Negocio",
-        path: "new", // Se renderiza en /businesses/new
-        element: BusinessForm,
-      },
-      // 👇 AÑADE ESTA NUEVA RUTA ANIDADA AQUÍ
-      learningPath: {
-        title: "Camino de Aprendizaje",
-        path: ":businessId/learning-path",
-        layout: React.Fragment,
-        routes: {
-          index: {
-            title: "Vista Principal",
-            path: "", // index route
-            element: LearningPathPage,
-          },
-          module: {
-            title: "Module",
-            path: ":moduleId", 
-            element: ModuleContentPage,
-          },
-        },
+      index: {
+        title: "Negocios",
+        path: "",
+        element: ModuleContentPage,
       },
     },
   },
 
-  
+  dashboard: {
+    path: "/dashboard",
+    layout: ({ children }: { children: React.ReactNode }) => (
+      <ProtectedRoute>{children}</ProtectedRoute>
+    ),
+    routes: {
+      index: {
+        title: "Dashboard",
+        path: "",
+        element: DashboardPage,
+      },
+    },
+  },
+
+  businessSetup: {
+    path: "/business-setup",
+    layout: ({ children }: { children: React.ReactNode }) => (
+      <ProtectedRoute>{children}</ProtectedRoute>
+    ),
+    routes: {
+      index: {
+        title: "Configuración del Negocio",
+        path: "",
+        element: BusinessSetupPage,
+      },
+    },
+  },
+
+  fixedCosts: {
+    path: "/fixed-costs",
+    layout: ({ children }: { children: React.ReactNode }) => (
+      <ProtectedRoute>{children}</ProtectedRoute>
+    ),
+    routes: {
+      index: {
+        title: "Costos Fijos",
+        path: "",
+        element: FixedCostsPage,
+      },
+    },
+  },
+
+  variableCosts: {
+    path: "/variable-costs",
+    layout: ({ children }: { children: React.ReactNode }) => (
+      <ProtectedRoute>{children}</ProtectedRoute>
+    ),
+    routes: {
+      index: {
+        title: "Costos Variables",
+        path: "",
+        element: VariableCostsPage,
+      },
+    },
+  },
+
+  profitabilityAnalysis: {
+    path: "/profitability-analysis",
+    layout: ({ children }: { children: React.ReactNode }) => (
+      <ProtectedRoute>{children}</ProtectedRoute>
+    ),
+    routes: {
+      index: {
+        title: "Análisis de Rentabilidad",
+        path: "",
+        element: ProfitabilityAnalysisPage,
+      },
+    },
+  },
+
+  results: {
+    path: "/results",
+    layout: ({ children }: { children: React.ReactNode }) => (
+      <ProtectedRoute>{children}</ProtectedRoute>
+    ),
+    routes: {
+      index: {
+        title: "Resultados del Análisis",
+        path: "",
+        element: ResultsPage,
+      },
+    },
+  },
 };

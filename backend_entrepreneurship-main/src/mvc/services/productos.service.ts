@@ -356,13 +356,13 @@ export class ProductosService {
   async findRecetasByProductoId(productoId: number) {
     try {
       const recetas = await this.prisma.recetas.findMany({
-        where: {
-          producto_id: productoId,
-        },
+        where: { producto_id: productoId },
         include: {
           Productos: {
             select: {
               nombre_producto: true,
+              precio_por_unidad: true,
+              costo_por_unidad: true,
             },
           },
         },
@@ -378,6 +378,33 @@ export class ProductosService {
       };
     } catch (error) {
       throw new BadRequestException(`Error al obtener las recetas: ${error.message}`);
+    }
+  }
+
+  async findAllRecetas() {
+    try {
+      const recetas = await this.prisma.recetas.findMany({
+        include: {
+          Productos: {
+            select: {
+              nombre_producto: true,
+              precio_por_unidad: true,
+              costo_por_unidad: true,
+            },
+          },
+        },
+        orderBy: {
+          nombre_receta: 'asc',
+        },
+      });
+
+      return {
+        message: 'Todas las recetas obtenidas exitosamente',
+        data: recetas,
+        total: recetas.length,
+      };
+    } catch (error) {
+      throw new BadRequestException(`Error al obtener todas las recetas: ${error.message}`);
     }
   }
 

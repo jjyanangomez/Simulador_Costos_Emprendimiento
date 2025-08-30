@@ -18,6 +18,7 @@ import { CompleteAnalysisResultController } from './controllers/complete-analysi
 import { AnalisisIAController } from './controllers/analysis_ai.controller';
 import { AiController } from './controllers/ai.controller';
 import { CostosFijosController } from './controllers/costos-fijos.controller';
+import { CostosVariablesController } from './controllers/costos-variables.controller';
 import { ProductosController, RecetasController } from './controllers/productos.controller';
 import { AnalisisController } from './controllers/analisis.controller';
 
@@ -36,6 +37,7 @@ import { CompleteAnalysisResultService } from './services/complete-analysis-resu
 import { AnalisisIAService } from './services/analysis_ai.service';
 import { AiService } from './services/ai.service';
 import { CostosFijosService } from './services/costos-fijos.service';
+import { CostosVariablesService } from './services/costos-variables.service';
 import { ProductosService } from './services/productos.service';
 import { AnalisisService } from './services/analisis.service';
 
@@ -72,6 +74,7 @@ import { ModuloMapper } from './models/mappers/modulo.mapper';
     AnalisisIAController,
     AiController,
     CostosFijosController,
+    CostosVariablesController,
     ProductosController,
     RecetasController,
     AnalisisController,
@@ -92,6 +95,7 @@ import { ModuloMapper } from './models/mappers/modulo.mapper';
     AnalisisIAService,
     AiService,
     CostosFijosService,
+    CostosVariablesService,
     ProductosService,
     AnalisisService,
     // Mappers

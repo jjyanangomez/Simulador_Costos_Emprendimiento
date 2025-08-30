@@ -96,6 +96,47 @@ export class CostosFijosService {
     }
   }
 
+  async getTotalByNegocioId(negocioId: number) {
+    try {
+      const costosFijos = await this.prisma.costosFijos.findMany({
+        where: {
+          negocio_id: negocioId,
+          activo: true,
+        },
+        select: {
+          monto: true,
+          frecuencia: true,
+        },
+      });
+
+      // Calcular total considerando la frecuencia
+      let total = 0;
+      costosFijos.forEach(costo => {
+        switch (costo.frecuencia) {
+          case 'mensual':
+            total += Number(costo.monto);
+            break;
+          case 'semestral':
+            total += Number(costo.monto) / 6;
+            break;
+          case 'anual':
+            total += Number(costo.monto) / 12;
+            break;
+          default:
+            total += Number(costo.monto);
+        }
+      });
+
+      return {
+        message: 'Total de costos fijos calculado exitosamente',
+        total: total,
+        count: costosFijos.length,
+      };
+    } catch (error) {
+      throw new BadRequestException(`Error al calcular el total de costos fijos: ${error.message}`);
+    }
+  }
+
   async findById(id: number) {
     try {
       const costoFijo = await this.prisma.costosFijos.findUnique({

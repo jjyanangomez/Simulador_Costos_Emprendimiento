@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-
 }
 
 datasource db {
@@ -8,16 +7,232 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ========================================
+// MODELOS PRINCIPALES
+// ========================================
+
+model Usuarios {
+  usuario_id      Int        @id @default(autoincrement())
+  nombre_completo String     @db.VarChar(150)
+  email           String     @unique @db.VarChar(255)
+  password_hash   String     @db.VarChar(255)
+  fecha_nacimiento DateTime  @db.Timestamp(6)
+  fecha_registro  DateTime?  @default(now()) @db.Timestamp(6)
+  Negocios        Negocios[]
+}
+
+model Sectores {
+  sector_id     Int        @id @default(autoincrement())
+  nombre_sector String     @db.VarChar(100) @unique
+  descripcion   String?
+  Negocios      Negocios[]
+  Resultados_Precio_Venta Resultados_Precio_Venta[]
+  Resultados_Punto_Equilibrio Resultados_Punto_Equilibrio[]
+}
+
+model TamanosNegocio {
+  id_tamano     Int        @id @default(autoincrement())
+  tamano_nombre String     @db.VarChar(50)
+  descripcion   String?
+  Negocios      Negocios[]
+}
+
+model Negocios {
+  negocio_id            Int                     @id @default(autoincrement())
+  usuario_id            Int
+  sector_id             Int
+  nombre_negocio        String                  @db.VarChar(200)
+  ubicacion_exacta      String?
+  id_tamano             Int
+  aforo_personas        Int
+  fecha_creacion        DateTime?               @default(now()) @db.Timestamp(6)
+  
+  // Información financiera
+  inversion_inicial     Decimal                 @db.Decimal(15, 2)
+  capital_propio        Decimal?                @db.Decimal(15, 2)
+  capital_prestamo      Decimal?                @db.Decimal(15, 2)
+  tasa_interes          Decimal?                @db.Decimal(5, 2)
+  
+  // Relaciones
+  Usuarios                       Usuarios                @relation(fields: [usuario_id], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
+  Sectores                      Sectores                 @relation(fields: [sector_id], references: [sector_id], onDelete: NoAction, onUpdate: NoAction)
+  TamanosNegocio                TamanosNegocio           @relation(fields: [id_tamano], references: [id_tamano], onDelete: NoAction, onUpdate: NoAction)
+  
+  // Relaciones existentes
+  Analisis_IA                    Analisis_IA[]
+  NegocioProgresoPaso            NegocioProgresoPaso[]
+  Registros_financieros          Registros_financieros[]
+  Resultados_Validacion_Costos   Resultados_Validacion_Costos[]
+  Resultados_Analisis_Completo   Resultados_Analisis_Completo[]
+  Resultados_Precio_Venta        Resultados_Precio_Venta[]
+  Resultados_Punto_Equilibrio    Resultados_Punto_Equilibrio[]
+  
+  // Nuevas relaciones
+  Productos                      Productos[]
+  CostosFijos                    CostosFijos[]
+  CostosVariables                CostosVariables[]
+  Personal                       Personal[]
+  
+  @@map("Negocios")
+}
+
+// ========================================
+// MODELOS DE PRODUCTOS Y RECETAS
+// ========================================
+
+model CategoriasProducto {
+  categoria_id    Int        @id @default(autoincrement())
+  nombre          String     @db.VarChar(100)
+  descripcion     String?
+  Productos       Productos[]
+}
+
+model UnidadMedida {
+  unidad_id       Int        @id @default(autoincrement())
+  nombre          String     @db.VarChar(50) @unique
+  abreviatura     String     @db.VarChar(10)
+  Productos       Productos[]
+  CostosVariables CostosVariables[]
+}
+
+model Productos {
+  producto_id           Int                @id @default(autoincrement())
+  negocio_id            Int
+  categoria_id          Int
+  unidad_medida_id      Int
+  nombre_producto       String             @db.VarChar(200)
+  precio_por_unidad     Decimal            @db.Decimal(10, 2)
+  porcion_requerida     Decimal            @db.Decimal(10, 2)
+  porcion_unidad        Decimal?           @db.Decimal(10, 2)
+  costo_por_unidad      Decimal            @db.Decimal(10, 2)
+  
+  // Relaciones
+  Negocios              Negocios           @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
+  CategoriasProducto    CategoriasProducto @relation(fields: [categoria_id], references: [categoria_id], onDelete: NoAction, onUpdate: NoAction)
+  UnidadMedida          UnidadMedida       @relation(fields: [unidad_medida_id], references: [unidad_medida_id], onDelete: NoAction, onUpdate: NoAction)
+  
+  // Relaciones con recetas
+  Recetas               Recetas[]
+  CostosVariables       CostosVariables[]
+  
+  @@map("Productos")
+}
+
+model Recetas {
+  receta_id            Int                @id @default(autoincrement())
+  producto_id          Int
+  nombre_receta        String             @db.VarChar(200)
+  tiempo_preparacion   Int?               // En minutos
+  personal_requerido   Int?               // Cantidad de personas
+  costos_adicionales   Decimal?           @db.Decimal(10, 2)
+  precio_venta         Decimal            @db.Decimal(10, 2)
+  
+  // Relaciones
+  Productos            Productos          @relation(fields: [producto_id], references: [producto_id], onDelete: NoAction, onUpdate: NoAction)
+  CostosVariables      CostosVariables[]
+  
+  @@map("Recetas")
+}
+
+// ========================================
+// MODELOS DE COSTOS
+// ========================================
+
+model TiposCosto {
+  tipo_costo_id    Int        @id @default(autoincrement())
+  nombre           String     @db.VarChar(100) @unique
+  descripcion      String?
+  es_fijo          Boolean    @default(true)
+  CostosFijos      CostosFijos[]
+  CostosVariables  CostosVariables[]
+}
+
+model CostosFijos {
+  costo_fijo_id  Int                @id @default(autoincrement())
+  negocio_id     Int
+  tipo_costo_id  Int
+  nombre         String             @db.VarChar(200)
+  descripcion    String?
+  monto          Decimal            @db.Decimal(12, 2)
+  frecuencia     String             @db.VarChar(50)
+  fecha_inicio   DateTime?          @default(now()) @db.Timestamp(6)
+  fecha_fin      DateTime?
+  activo         Boolean            @default(true)
+  
+  // Relaciones
+  Negocios       Negocios           @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
+  TiposCosto     TiposCosto         @relation(fields: [tipo_costo_id], references: [tipo_costo_id], onDelete: NoAction, onUpdate: NoAction)
+  
+  @@map("CostosFijos")
+}
+
+model CostosVariables {
+  costo_variable_id Int                @id @default(autoincrement())
+  negocio_id        Int
+  producto_id       Int?
+  receta_id         Int?
+  tipo_costo_id     Int
+  nombre            String             @db.VarChar(200)
+  descripcion       String?
+  monto_por_unidad  Decimal           @db.Decimal(10, 2)
+  unidad_medida_id  Int
+  activo            Boolean           @default(true)
+  
+  // Relaciones
+  Negocios          Negocios          @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
+  Productos         Productos?        @relation(fields: [producto_id], references: [producto_id], onDelete: NoAction, onUpdate: NoAction)
+  Recetas           Recetas?          @relation(fields: [receta_id], references: [receta_id], onDelete: NoAction, onUpdate: NoAction)
+  TiposCosto        TiposCosto        @relation(fields: [tipo_costo_id], references: [tipo_costo_id], onDelete: NoAction, onUpdate: NoAction)
+  UnidadMedida      UnidadMedida      @relation(fields: [unidad_medida_id], references: [unidad_id], onDelete: NoAction, onUpdate: NoAction)
+  
+  @@map("CostosVariables")
+}
+
+// ========================================
+// MODELOS DE PERSONAL
+// ========================================
+
+model CargosPersonal {
+  cargo_id        Int        @id @default(autoincrement())
+  nombre_cargo    String     @db.VarChar(100)
+  descripcion     String?
+  Personal        Personal[]
+}
+
+model Personal {
+  personal_id       Int                @id @default(autoincrement())
+  negocio_id        Int
+  cargo_id          Int
+  nombre            String             @db.VarChar(150)
+  apellido          String             @db.VarChar(150)
+  salario_base      Decimal            @db.Decimal(10, 2)
+  horas_trabajo     Int?               // Horas por semana
+  fecha_contratacion DateTime?         @default(now()) @db.Timestamp(6)
+  activo            Boolean            @default(true)
+  
+  // Relaciones
+  Negocios          Negocios           @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
+  CargosPersonal    CargosPersonal     @relation(fields: [cargo_id], references: [cargo_id], onDelete: NoAction, onUpdate: NoAction)
+  
+  @@map("Personal")
+}
+
+// ========================================
+// MODELOS EXISTENTES (mantener compatibilidad)
+// ========================================
+
 model Analisis_IA {
   analisis_id                   Int                             @id @default(autoincrement())
   negocio_id                    Int
   fecha_analisis                DateTime?                       @default(now()) @db.Timestamp(6)
-  Negocios                      Negocios                        @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_analisis_negocios")
+  Negocios                      Negocios                        @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
   Resultados_Costos_Analizados  Resultados_Costos_Analizados[]
   Resultados_Costos_Omitidos    Resultados_Costos_Omitidos[]
   Resultados_Plan_Accion        Resultados_Plan_Accion[]
   Resultados_Riesgos_Detectados Resultados_Riesgos_Detectados[]
   Resultados_Analisis_Completo  Resultados_Analisis_Completo[]
+  Resultados_Precio_Venta       Resultados_Precio_Venta[]
+  Resultados_Punto_Equilibrio   Resultados_Punto_Equilibrio[]
 }
 
 model Aprendizaje {
@@ -27,7 +242,6 @@ model Aprendizaje {
   Modulos        Modulos[]
 }
 
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model Estados {
   id_estado           Int                   @id @default(autoincrement())
   nombre_estado       String                @db.VarChar(50)
@@ -42,11 +256,13 @@ model Modulos {
   titulo_conteido       String?                 @db.VarChar(255)
   concepto              String
   recurso_interactivo   String?                 @db.VarChar(255)
-  Aprendizaje                    Aprendizaje             @relation(fields: [id_aprendizaje], references: [id_aprendizaje], onDelete: NoAction, onUpdate: NoAction, map: "fk_modulos_aprendizaje")
+  Aprendizaje                    Aprendizaje             @relation(fields: [id_aprendizaje], references: [id_aprendizaje], onDelete: NoAction, onUpdate: NoAction)
   NegocioProgresoPaso            NegocioProgresoPaso[]
   Registros_financieros          Registros_financieros[]
   Resultados_Validacion_Costos   Resultados_Validacion_Costos[]
   Resultados_Analisis_Completo   Resultados_Analisis_Completo[]
+  Resultados_Precio_Venta        Resultados_Precio_Venta[]
+  Resultados_Punto_Equilibrio    Resultados_Punto_Equilibrio[]
 }
 
 model NegocioProgresoPaso {
@@ -56,30 +272,11 @@ model NegocioProgresoPaso {
   id_estado        Int
   fecha_inicio     DateTime? @db.Timestamp(6)
   fecha_completado DateTime? @db.Timestamp(6)
-  Estados          Estados   @relation(fields: [id_estado], references: [id_estado], onDelete: NoAction, onUpdate: NoAction, map: "fk_progreso_estados")
-  Modulos          Modulos   @relation(fields: [modulo_id], references: [id_modulo], onDelete: NoAction, onUpdate: NoAction, map: "fk_progreso_modulos")
-  Negocios         Negocios  @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_progreso_negocios")
+  Estados          Estados   @relation(fields: [id_estado], references: [id_estado], onDelete: NoAction, onUpdate: NoAction)
+  Modulos          Modulos   @relation(fields: [modulo_id], references: [id_modulo], onDelete: NoAction, onUpdate: NoAction)
+  Negocios         Negocios  @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
   @@unique([negocio_id, modulo_id], map: "unique_progreso_negocio_modulo")
   @@map("NegocioProgresoPaso")
-
-}
-
-model Negocios {
-  negocio_id            Int                     @id @default(autoincrement()) @map("negocio_id")
-  usuario_id            Int                     @map("usuario_id")
-  tipo_negocio          String                 @db.VarChar(100)   @map("tipo_negocio")
-  nombre_negocio        String                  @db.VarChar(200)  @map("nombre_negocio")
-  ubicacion             String
-  id_tamano             Int                     @map("id_tamano")
-  fecha_creacion        DateTime?               @default(now()) @db.Timestamp(6)   @map("fecha_creacion")
-  Analisis_IA                    Analisis_IA[]
-  NegocioProgresoPaso            NegocioProgresoPaso[]
-  tamano_negocio                 tamano_negocio          @relation(fields: [id_tamano], references: [id_tamano], onDelete: NoAction, onUpdate: NoAction, map: "fk_negocios_tamano")
-  Usuarios                       Usuarios                @relation(fields: [usuario_id], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_negocios_usuarios")
-  Registros_financieros          Registros_financieros[]
-  Resultados_Validacion_Costos   Resultados_Validacion_Costos[]
-  Resultados_Analisis_Completo  Resultados_Analisis_Completo[]
-  @@map("Negocios")
 }
 
 model Registros_financieros {
@@ -89,8 +286,8 @@ model Registros_financieros {
   nombre         String    @db.VarChar(150)
   monto          Decimal   @db.Decimal(12, 2)
   fecha_registro DateTime? @default(now()) @db.Timestamp(6)
-  Modulos        Modulos   @relation(fields: [modulo_id], references: [id_modulo], onDelete: NoAction, onUpdate: NoAction, map: "fk_registros_modulos")
-  Negocios       Negocios  @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_registros_negocios")
+  Modulos        Modulos   @relation(fields: [modulo_id], references: [id_modulo], onDelete: NoAction, onUpdate: NoAction)
+  Negocios       Negocios  @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model Resultados_Costos_Analizados {
@@ -101,7 +298,7 @@ model Resultados_Costos_Analizados {
   rango_estimado     String?     @db.VarChar(100)
   evaluacion         String?     @db.VarChar(100)
   comentario         String?
-  Analisis_IA        Analisis_IA @relation(fields: [analisis_id], references: [analisis_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_resultados_analisis")
+  Analisis_IA        Analisis_IA @relation(fields: [analisis_id], references: [analisis_id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model Resultados_Costos_Omitidos {
@@ -109,7 +306,7 @@ model Resultados_Costos_Omitidos {
   analisis_id      Int
   costo_omitido    String?     @db.VarChar(255)
   importancia      String?     @db.VarChar(100)
-  Analisis_IA      Analisis_IA @relation(fields: [analisis_id], references: [analisis_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_omitidos_analisis")
+  Analisis_IA      Analisis_IA @relation(fields: [analisis_id], references: [analisis_id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model Resultados_Plan_Accion {
@@ -118,7 +315,7 @@ model Resultados_Plan_Accion {
   titulo      String?     @db.VarChar(255)
   descripcion String?
   prioridad   String?     @db.VarChar(50)
-  Analisis_IA Analisis_IA @relation(fields: [analisis_id], references: [analisis_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_plan_analisis")
+  Analisis_IA Analisis_IA @relation(fields: [analisis_id], references: [analisis_id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model Resultados_Riesgos_Detectados {
@@ -127,7 +324,7 @@ model Resultados_Riesgos_Detectados {
   riesgo            String?     @db.VarChar(255)
   causa_directa     String?
   impacto_potencial String?
-  Analisis_IA       Analisis_IA @relation(fields: [analisis_id], references: [analisis_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_riesgos_analisis")
+  Analisis_IA       Analisis_IA @relation(fields: [analisis_id], references: [analisis_id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model Resultados_Validacion_Costos {
@@ -140,8 +337,8 @@ model Resultados_Validacion_Costos {
   resumen_validacion         Json?       // Resumen completo de validación
   puntuacion_global          Int?        // Puntuación 1-10
   puede_proseguir_analisis   Boolean     @default(false)
-  Negocios                   Negocios    @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_validacion_negocios")
-  Modulos                    Modulos     @relation(fields: [modulo_id], references: [id_modulo], onDelete: NoAction, onUpdate: NoAction, map: "fk_validacion_modulos")
+  Negocios                   Negocios    @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
+  Modulos                    Modulos     @relation(fields: [modulo_id], references: [id_modulo], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model Resultados_Analisis_Completo {
@@ -154,25 +351,78 @@ model Resultados_Analisis_Completo {
   riesgos_detectados         Json?       // Array completo de riesgos detectados
   plan_accion                Json?       // Array completo del plan de acción
   resumen_analisis           Json?       // Resumen general del análisis
-  estado_guardado            String      @default("guardado") @db.VarChar(50) // guardado, procesando, error
-  Negocios                   Negocios    @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_resultados_completos_negocios")
-  Modulos                    Modulos     @relation(fields: [modulo_id], references: [id_modulo], onDelete: NoAction, onUpdate: NoAction, map: "fk_resultados_completos_modulos")
-  Analisis_IA                Analisis_IA @relation(fields: [analisis_id], references: [analisis_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_resultados_completos_analisis")
+  estado_guardado            String      @default("guardado") @db.VarChar(50)
+  Negocios                   Negocios    @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
+  Modulos                    Modulos     @relation(fields: [modulo_id], references: [id_modulo], onDelete: NoAction, onUpdate: NoAction)
+  Analisis_IA                Analisis_IA @relation(fields: [analisis_id], references: [analisis_id], onDelete: NoAction, onUpdate: NoAction)
   @@unique([negocio_id, modulo_id, analisis_id], map: "unique_resultado_completo")
 }
 
-model Usuarios {
-  usuario_id      Int        @id @default(autoincrement())
-  nombre_completo String     @db.VarChar(150)
-  email           String     @unique @db.VarChar(255)
-  password_hash   String     @db.VarChar(255)
-  fecha_registro  DateTime?  @default(now()) @db.Timestamp(6)
-  Negocios        Negocios[]
+// ========================================
+// NUEVOS MODELOS PARA ANÁLISIS DE IA
+// ========================================
+
+model Resultados_Precio_Venta {
+  resultado_id               Int         @id @default(autoincrement())
+  negocio_id                 Int
+  modulo_id                  Int
+  sector_id                  Int
+  analisis_id                Int
+  fecha_analisis             DateTime?   @default(now()) @db.Timestamp(6)
+  
+  // Campos para análisis de precio de venta
+  costos_fijos_totales       Decimal     @db.Decimal(15, 2)
+  costos_variables_totales   Decimal     @db.Decimal(15, 2)
+  margen_contribucion        Decimal     @db.Decimal(5, 2) // Porcentaje
+  precio_venta_sugerido      Decimal     @db.Decimal(10, 2)
+  precio_venta_competitivo   Decimal     @db.Decimal(10, 2)
+  rentabilidad_estimada      Decimal     @db.Decimal(5, 2) // Porcentaje
+  
+  // Análisis de mercado
+  precio_promedio_mercado    Decimal?    @db.Decimal(10, 2)
+  posicionamiento_precio     String?     @db.VarChar(100) // alto, medio, bajo
+  recomendaciones_precio     Json?       // Array de recomendaciones
+  
+  // Relaciones
+  Negocios                   Negocios    @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
+  Modulos                    Modulos     @relation(fields: [modulo_id], references: [modulo_id], onDelete: NoAction, onUpdate: NoAction)
+  Sectores                   Sectores    @relation(fields: [sector_id], references: [sector_id], onDelete: NoAction, onUpdate: NoAction)
+  Analisis_IA                Analisis_IA @relation(fields: [analisis_id], references: [analisis_id], onDelete: NoAction, onUpdate: NoAction)
+  
+  @@unique([negocio_id, modulo_id, analisis_id], map: "unique_resultado_precio_venta")
+  @@map("Resultados_Precio_Venta")
 }
 
-/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
-model tamano_negocio {
-  id_tamano     Int        @id @default(autoincrement())
-  tamano_nombre String     @db.VarChar(50)
-  Negocios      Negocios[]
+model Resultados_Punto_Equilibrio {
+  resultado_id               Int         @id @default(autoincrement())
+  negocio_id                 Int
+  modulo_id                  Int
+  sector_id                  Int
+  analisis_id                Int
+  fecha_analisis             DateTime?   @default(now()) @db.Timestamp(6)
+  
+  // Campos para análisis de punto de equilibrio
+  costos_fijos_totales       Decimal     @db.Decimal(15, 2)
+  costos_variables_totales   Decimal     @db.Decimal(15, 2)
+  precio_venta_unitario      Decimal     @db.Decimal(10, 2)
+  costo_variable_unitario    Decimal     @db.Decimal(10, 2)
+  
+  // Cálculos del punto de equilibrio
+  punto_equilibrio_unidades  Decimal     @db.Decimal(10, 2)
+  punto_equilibrio_ventas    Decimal     @db.Decimal(15, 2)
+  margen_seguridad           Decimal     @db.Decimal(5, 2) // Porcentaje
+  
+  // Análisis de sensibilidad
+  escenario_optimista        Json?       // Datos del escenario optimista
+  escenario_pesimista        Json?       // Datos del escenario pesimista
+  recomendaciones_equilibrio Json?       // Array de recomendaciones
+  
+  // Relaciones
+  Negocios                   Negocios    @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
+  Modulos                    Modulos     @relation(fields: [modulo_id], references: [modulo_id], onDelete: NoAction, onUpdate: NoAction)
+  Sectores                   Sectores    @relation(fields: [sector_id], references: [sector_id], onDelete: NoAction, onUpdate: NoAction)
+  Analisis_IA                Analisis_IA @relation(fields: [analisis_id], references: [analisis_id], onDelete: NoAction, onUpdate: NoAction)
+  
+  @@unique([negocio_id, modulo_id, analisis_id], map: "unique_resultado_punto_equilibrio")
+  @@map("Resultados_Punto_Equilibrio")
 }

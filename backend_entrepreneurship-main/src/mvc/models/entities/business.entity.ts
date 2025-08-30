@@ -1,30 +1,45 @@
 export class Business {
   negocioId?: number;
   usuarioId: number;
-  tipoNegocio: string;
+  sectorId?: number;
   nombreNegocio: string;
-  ubicacion: string;
-  idTamano: number;
+  ubicacionExacta: string;
+  idTamano?: number;
   tamano?: string; // Nombre del tamaño del negocio
+  aforoPersonas?: number;
+  inversionInicial?: number;
+  capitalPropio?: number;
+  capitalPrestamo?: number;
+  tasaInteres?: number;
   fechaCreacion?: Date;
 
   constructor(
     usuarioId: number,
-    tipoNegocio: string,
     nombreNegocio: string,
-    ubicacion: string,
-    idTamano: number,
+    ubicacionExacta: string,
     negocioId?: number,
     fechaCreacion?: Date,
     tamano?: string,
+    sectorId?: number,
+    idTamano?: number,
+    aforoPersonas?: number,
+    inversionInicial?: number,
+    capitalPropio?: number,
+    capitalPrestamo?: number,
+    tasaInteres?: number,
   ) {
     this.usuarioId = usuarioId;
-    this.tipoNegocio = tipoNegocio;
     this.nombreNegocio = nombreNegocio;
-    this.ubicacion = ubicacion;
-    this.idTamano = idTamano;
+    this.ubicacionExacta = ubicacionExacta;
     this.negocioId = negocioId;
     this.fechaCreacion = fechaCreacion;
     this.tamano = tamano;
+    this.sectorId = sectorId;
+    this.idTamano = idTamano;
+    this.aforoPersonas = aforoPersonas;
+    this.inversionInicial = inversionInicial;
+    this.capitalPropio = capitalPropio;
+    this.capitalPrestamo = capitalPrestamo;
+    this.tasaInteres = tasaInteres;
   }
 }

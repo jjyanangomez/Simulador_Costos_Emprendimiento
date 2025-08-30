@@ -4,7 +4,6 @@ import { BusinessForm } from "../../../../core/businesses/infrastructure/ui/Busi
 import { LearningPathPage } from "../../../../core/learning-path/infrastructure/ui/pages/LearningPathPage";
 import { Navigate } from "react-router-dom";
 import { LoginPage } from "../../../../core/auth/infrastructure/ui/LoginPage";
-import { ResetPasswordPage } from "../../../../core/auth/infrastructure/ui/ResetPasswordPage";
 import { ModuleContentPage } from "../../../../core/modules/infrastructure/ui/pages/ModuleContentPage";
 import { ProtectedRoute } from "../../../../core/auth/infrastructure/components/ProtectedRoute";
 
@@ -28,18 +27,6 @@ export const Routes = {
         title: "",
         path: "",
         element: LoginPage,
-      },
-    },
-  },
-
-  resetPassword: {
-    path: "/reset-password",
-    layout: React.Fragment,
-    routes: {
-      reset: {
-        title: "",
-        path: "",
-        element: ResetPasswordPage,
       },
     },
   },

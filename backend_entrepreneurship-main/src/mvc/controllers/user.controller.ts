@@ -12,7 +12,6 @@ import {
 import { UserService } from '../services/user.service';
 import { CreateUserDto } from '../models/dto/create-user.dto';
 import { LoginUserDto } from '../models/dto/login-user.dto';
-import { ResetPasswordDto } from '../models/dto/reset-password.dto';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 
 @ApiTags('usuarios')
@@ -98,32 +97,6 @@ export class UserController {
       console.error('💥 [BACKEND] Error al obtener usuarios:', error);
       throw new HttpException(
         'Error al obtener la lista de usuarios',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  @Post('reset-password')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Restablecer contraseña de usuario' })
-  @ApiBody({ type: ResetPasswordDto, description: 'Datos para restablecer la contraseña' })
-  @ApiResponse({ status: 200, description: 'Contraseña restablecida exitosamente.' })
-  @ApiResponse({ status: 400, description: 'Datos de entrada inválidos o contraseñas no coinciden.' })
-  @ApiResponse({ status: 404, description: 'Usuario no encontrado.' })
-  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
-    try {
-      const result = await this.userService.resetPassword(resetPasswordDto);
-      return result;
-    } catch (error) {
-      console.error('💥 [BACKEND] Error al restablecer contraseña:', error);
-      if (error.message === 'Usuario no encontrado con ese email') {
-        throw new HttpException(error.message, HttpStatus.NOT_FOUND);
-      }
-      if (error.message === 'Las contraseñas no coinciden') {
-        throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
-      }
-      throw new HttpException(
-        'Error al restablecer la contraseña',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

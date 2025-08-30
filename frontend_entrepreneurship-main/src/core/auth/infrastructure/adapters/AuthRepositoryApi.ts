@@ -21,16 +21,9 @@ export interface RegisterRequest {
   password: string;
 }
 
-export interface ResetPasswordRequest {
-  email: string;
-  newPassword: string;
-  confirmPassword: string;
-}
-
 export interface AuthRepository {
   login(credentials: LoginRequest): Promise<User>;
   register(userData: RegisterRequest): Promise<User>;
-  resetPassword(data: ResetPasswordRequest): Promise<{ message: string }>;
 }
 
 export class AuthRepositoryApi implements AuthRepository {
@@ -49,10 +42,6 @@ export class AuthRepositoryApi implements AuthRepository {
       return response;
     } catch (error) {
       console.error('💥 [FRONTEND] Error en login:', error);
-      // Propagar el error real del backend si está disponible
-      if (error instanceof Error) {
-        throw error;
-      }
       throw new Error('Credenciales inválidas. Inténtalo de nuevo.');
     }
   }
@@ -68,29 +57,10 @@ export class AuthRepositoryApi implements AuthRepository {
       return response;
     } catch (error) {
       console.error('💥 [FRONTEND] Error en registro:', error);
-      // Propagar el error real del backend si está disponible
-      if (error instanceof Error) {
-        throw error;
+      if (error instanceof Error && error.message.includes('409')) {
+        throw new Error('El email ya está registrado. Intenta con otro email.');
       }
       throw new Error('Error al registrar usuario. Inténtalo de nuevo.');
-    }
-  }
-
-  async resetPassword(data: ResetPasswordRequest): Promise<{ message: string }> {
-    try {
-      console.log('🔐 [FRONTEND] Intentando reset de contraseña para:', data.email);
-      
-      const response = await apiClient.post<{ message: string }>('/usuarios/reset-password', data);
-      
-      console.log('✅ [FRONTEND] Reset de contraseña exitoso:', response);
-      
-      return response;
-    } catch (error) {
-      console.error('💥 [FRONTEND] Error en reset de contraseña:', error);
-      if (error instanceof Error) {
-        throw new Error(error.message);
-      }
-      throw new Error('Error al restablecer la contraseña. Inténtalo de nuevo.');
     }
   }
 }

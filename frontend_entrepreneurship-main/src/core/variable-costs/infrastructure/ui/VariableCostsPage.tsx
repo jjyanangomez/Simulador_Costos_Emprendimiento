@@ -23,6 +23,8 @@ interface AIValidation {
   severity: 'low' | 'medium' | 'high' | 'none';
 }
 
+// Tipos para ingredientes
+
 const variableCostSchema = z.object({
   products: z.array(z.object({
     name: z.string().min(3, 'El nombre del producto debe tener al menos 3 caracteres'),

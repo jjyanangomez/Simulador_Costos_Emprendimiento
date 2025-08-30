@@ -46,7 +46,7 @@ export function LoginForm() {
         password: loginData.password
       });
       alert(`¡Bienvenido ${user.nombreCompleto}!`);
-      navigate('/businesses');
+      navigate('/dashboard');
       return user;
     });
     

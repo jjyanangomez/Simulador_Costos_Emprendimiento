@@ -21,7 +21,11 @@ const businessSetupSchema = z.object({
   exactLocation: z.string().optional(),
   businessSize: z.string().min(1, 'Selecciona un tamaño'),
   capacity: z.number().min(1, 'El aforo debe ser mayor a 0'),
-  initialInvestment: z.number().min(0, 'La inversión no puede ser negativa'),
+  financingType: z.enum(['personal', 'prestamo', 'mixto'], { required_error: 'Selecciona el tipo de financiamiento' }),
+  investmentItems: z.array(z.object({
+    description: z.string().min(1, 'La descripción es requerida'),
+    amount: z.number().min(0.01, 'El monto debe ser mayor a 0'),
+  })).min(1, 'Debes agregar al menos un item de inversión'),
   ownCapital: z.number().min(0, 'El capital propio no puede ser negativo'),
   loanCapital: z.number().min(0, 'El capital prestado no puede ser negativo'),
   interestRate: z.number().min(0, 'La tasa de interés no puede ser negativa'),
@@ -74,6 +78,7 @@ export function BusinessSetupPage() {
     handleSubmit,
     watch,
     formState: { errors, isValid },
+    setValue,
   } = useForm<BusinessSetupForm>({
     resolver: zodResolver(businessSetupSchema),
     defaultValues: {
@@ -83,7 +88,8 @@ export function BusinessSetupPage() {
       exactLocation: '',
       businessSize: '',
       capacity: 50,
-      initialInvestment: 0,
+      financingType: 'personal',
+      investmentItems: [{ description: '', amount: 0 }],
       ownCapital: 0,
       loanCapital: 0,
       interestRate: 8.5,
@@ -91,7 +97,42 @@ export function BusinessSetupPage() {
   });
 
   const watchedValues = watch();
-  const totalInvestment = watchedValues.ownCapital + watchedValues.loanCapital;
+  const totalInvestment = watchedValues.investmentItems.reduce((sum, item) => sum + item.amount, 0);
+  const totalFinancing = watchedValues.ownCapital + watchedValues.loanCapital;
+
+  // Función para agregar un nuevo item de inversión
+  const addInvestmentItem = () => {
+    const newItems = [...watchedValues.investmentItems, { description: '', amount: 0 }];
+    setValue('investmentItems', newItems);
+  };
+
+  // Función para eliminar un item de inversión
+  const removeInvestmentItem = (index: number) => {
+    if (watchedValues.investmentItems.length > 1) {
+      const newItems = watchedValues.investmentItems.filter((_, i) => i !== index);
+      setValue('investmentItems', newItems);
+    }
+  };
+
+  // Función para actualizar un item de inversión
+  const updateInvestmentItem = (index: number, field: 'description' | 'amount', value: string | number) => {
+    const newItems = [...watchedValues.investmentItems];
+    newItems[index] = { ...newItems[index], [field]: value };
+    setValue('investmentItems', newItems);
+  };
+
+  // Función para manejar el cambio de tipo de financiamiento
+  const handleFinancingTypeChange = (type: 'personal' | 'prestamo' | 'mixto') => {
+    setValue('financingType', type);
+    
+    // Resetear valores según el tipo
+    if (type === 'personal') {
+      setValue('loanCapital', 0);
+      setValue('interestRate', 0);
+    } else if (type === 'prestamo') {
+      setValue('ownCapital', 0);
+    }
+  };
 
   const onSubmit = async (data: BusinessSetupForm) => {
     setIsSubmitting(true);
@@ -318,33 +359,119 @@ export function BusinessSetupPage() {
             </h2>
             
             <div className="space-y-6">
-              {/* Inversión inicial */}
+              {/* Tipo de financiamiento */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Inversión Inicial Total (USD) *
+                <label className="block text-sm font-medium text-gray-700 mb-4">
+                  Tipo de Financiamiento *
                 </label>
-                <Controller
-                  name="initialInvestment"
-                  control={control}
-                  render={({ field }) => (
+                <div className="space-y-3">
+                  <label className="flex items-center space-x-3">
                     <input
-                      {...field}
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
-                        errors.initialInvestment ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      placeholder="25000"
+                      type="radio"
+                      name="financingType"
+                      value="personal"
+                      checked={watchedValues.financingType === 'personal'}
+                      onChange={() => handleFinancingTypeChange('personal')}
+                      className="w-4 h-4 text-primary-600 border-gray-300 focus:ring-primary-500"
                     />
-                  )}
-                />
-                {errors.initialInvestment && (
-                  <p className="mt-1 text-sm text-red-600">{errors.initialInvestment.message}</p>
+                    <span className="text-sm text-gray-700">Capital Personal/Propio</span>
+                  </label>
+                  <label className="flex items-center space-x-3">
+                    <input
+                      type="radio"
+                      name="financingType"
+                      value="prestamo"
+                      checked={watchedValues.financingType === 'prestamo'}
+                      onChange={() => handleFinancingTypeChange('prestamo')}
+                      className="w-4 h-4 text-primary-600 border-gray-300 focus:ring-primary-500"
+                    />
+                    <span className="text-sm text-gray-700">Préstamo Bancario</span>
+                  </label>
+                  <label className="flex items-center space-x-3">
+                    <input
+                      type="radio"
+                      name="financingType"
+                      value="mixto"
+                      checked={watchedValues.financingType === 'mixto'}
+                      onChange={() => handleFinancingTypeChange('mixto')}
+                      className="w-4 h-4 text-primary-600 border-gray-300 focus:ring-primary-500"
+                    />
+                    <span className="text-sm text-gray-700">Mixto (Personal + Préstamo)</span>
+                  </label>
+                </div>
+                {errors.financingType && (
+                  <p className="mt-1 text-sm text-red-600">{errors.financingType.message}</p>
                 )}
               </div>
 
-              {/* Desglose de la inversión */}
+              {/* Items de inversión */}
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Items de Inversión *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={addInvestmentItem}
+                    className="px-3 py-1 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                  >
+                    + Agregar Item
+                  </button>
+                </div>
+                
+                <div className="space-y-3">
+                  {watchedValues.investmentItems.map((item, index) => (
+                    <div key={index} className="flex space-x-3">
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          placeholder="Ej: Sillas, mesas, equipos..."
+                          value={item.description}
+                          onChange={(e) => updateInvestmentItem(index, 'description', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div className="w-32">
+                        <input
+                          type="number"
+                          placeholder="0.00"
+                          min="0"
+                          step="0.01"
+                          value={item.amount}
+                          onChange={(e) => updateInvestmentItem(index, 'amount', parseFloat(e.target.value) || 0)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        />
+                      </div>
+                      {watchedValues.investmentItems.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeInvestmentItem(index)}
+                          className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                
+                {errors.investmentItems && (
+                  <p className="mt-1 text-sm text-red-600">{errors.investmentItems.message}</p>
+                )}
+              </div>
+
+              {/* Resumen de la inversión total */}
+              <div className="bg-blue-50 rounded-lg p-4">
+                <h3 className="text-sm font-medium text-gray-700 mb-2">Resumen de la Inversión</h3>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-blue-600">
+                    ${totalInvestment.toLocaleString()}
+                  </p>
+                  <p className="text-sm text-gray-600">Inversión Total Requerida</p>
+                </div>
+              </div>
+
+              {/* Desglose del financiamiento */}
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -359,8 +486,11 @@ export function BusinessSetupPage() {
                         type="number"
                         min="0"
                         step="0.01"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                        placeholder="15000"
+                        disabled={watchedValues.financingType === 'prestamo'}
+                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                          watchedValues.financingType === 'prestamo' ? 'bg-gray-100 cursor-not-allowed' : ''
+                        }`}
+                        placeholder="0"
                       />
                     )}
                   />
@@ -379,8 +509,11 @@ export function BusinessSetupPage() {
                         type="number"
                         min="0"
                         step="0.01"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                        placeholder="10000"
+                        disabled={watchedValues.financingType === 'personal'}
+                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                          watchedValues.financingType === 'personal' ? 'bg-gray-100 cursor-not-allowed' : ''
+                        }`}
+                        placeholder="0"
                       />
                     )}
                   />
@@ -388,35 +521,37 @@ export function BusinessSetupPage() {
               </div>
 
               {/* Tasa de interés */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tasa de Interés Anual (%) *
-                </label>
-                <Controller
-                  name="interestRate"
-                  control={control}
-                  render={({ field }) => (
-                    <input
-                      {...field}
-                      type="number"
-                      min="0"
-                      step="0.1"
-                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
-                        errors.interestRate ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      placeholder="8.5"
-                    />
+              {watchedValues.financingType !== 'personal' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tasa de Interés Anual (%) *
+                  </label>
+                  <Controller
+                    name="interestRate"
+                    control={control}
+                    render={({ field }) => (
+                      <input
+                        {...field}
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                          errors.interestRate ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                        placeholder="8.5"
+                      />
+                    )}
+                  />
+                  {errors.interestRate && (
+                    <p className="mt-1 text-sm text-red-600">{errors.interestRate.message}</p>
                   )}
-                />
-                {errors.interestRate && (
-                  <p className="mt-1 text-sm text-red-600">{errors.interestRate.message}</p>
-                )}
-              </div>
+                </div>
+              )}
 
-              {/* Resumen de la inversión */}
+              {/* Validación del financiamiento */}
               {totalInvestment > 0 && (
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Resumen de la Inversión</h3>
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">Validación del Financiamiento</h3>
                   <div className="grid grid-cols-3 gap-4 text-sm">
                     <div>
                       <span className="text-gray-600">Capital Propio:</span>
@@ -428,13 +563,13 @@ export function BusinessSetupPage() {
                     </div>
                     <div>
                       <span className="text-gray-600">Total:</span>
-                      <p className="font-semibold text-gray-900">${totalInvestment.toLocaleString()}</p>
+                      <p className="font-semibold text-gray-900">${totalFinancing.toLocaleString()}</p>
                     </div>
                   </div>
                   
-                  {totalInvestment !== watchedValues.initialInvestment && (
+                  {totalFinancing !== totalInvestment && (
                     <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
-                      ⚠️ La suma del capital propio y préstamo debe igualar la inversión inicial
+                      ⚠️ La suma del capital propio y préstamo debe igualar la inversión total requerida
                     </div>
                   )}
                 </div>

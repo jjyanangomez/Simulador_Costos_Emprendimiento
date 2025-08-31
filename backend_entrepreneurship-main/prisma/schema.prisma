@@ -7,26 +7,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ========================================
-// MODELOS PRINCIPALES
-// ========================================
-
 model Usuarios {
-  usuario_id      Int        @id @default(autoincrement())
-  nombre_completo String     @db.VarChar(150)
-  email           String     @unique @db.VarChar(255)
-  password_hash   String     @db.VarChar(255)
-  fecha_nacimiento DateTime  @db.Timestamp(6)
-  fecha_registro  DateTime?  @default(now()) @db.Timestamp(6)
-  Negocios        Negocios[]
+  usuario_id       Int        @id @default(autoincrement())
+  nombre_completo  String     @db.VarChar(150)
+  email            String     @unique @db.VarChar(255)
+  password_hash    String     @db.VarChar(255)
+  fecha_registro   DateTime?  @default(now()) @db.Timestamp(6)
+  fecha_nacimiento DateTime   @db.Timestamp(6)
+  Negocios         Negocios[]
 }
 
 model Sectores {
-  sector_id     Int        @id @default(autoincrement())
-  nombre_sector String     @db.VarChar(100) @unique
-  descripcion   String?
-  Negocios      Negocios[]
-  Resultados_Precio_Venta Resultados_Precio_Venta[]
+  sector_id                   Int                           @id @default(autoincrement())
+  nombre_sector               String                        @unique @db.VarChar(100)
+  descripcion                 String?
+  Negocios                    Negocios[]
+  Resultados_Precio_Venta     Resultados_Precio_Venta[]
   Resultados_Punto_Equilibrio Resultados_Punto_Equilibrio[]
 }
 
@@ -38,290 +34,224 @@ model TamanosNegocio {
 }
 
 model Negocios {
-  negocio_id            Int                     @id @default(autoincrement())
-  usuario_id            Int
-  sector_id             Int
-  nombre_negocio        String                  @db.VarChar(200)
-  ubicacion_exacta      String?
-  id_tamano             Int
-  aforo_personas        Int
-  fecha_creacion        DateTime?               @default(now()) @db.Timestamp(6)
-  
-  // Información financiera
-  inversion_inicial     Decimal                 @db.Decimal(15, 2)
-  capital_propio        Decimal?                @db.Decimal(15, 2)
-  capital_prestamo      Decimal?                @db.Decimal(15, 2)
-  tasa_interes          Decimal?                @db.Decimal(5, 2)
-  
-  // Relaciones
-  Usuarios                       Usuarios                @relation(fields: [usuario_id], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
-  Sectores                      Sectores                 @relation(fields: [sector_id], references: [sector_id], onDelete: NoAction, onUpdate: NoAction)
-  TamanosNegocio                TamanosNegocio           @relation(fields: [id_tamano], references: [id_tamano], onDelete: NoAction, onUpdate: NoAction)
-  
-  // Relaciones existentes
-  Analisis_IA                    Analisis_IA[]
-  NegocioProgresoPaso            NegocioProgresoPaso[]
-  Registros_financieros          Registros_financieros[]
-  Resultados_Validacion_Costos   Resultados_Validacion_Costos[]
-  Resultados_Analisis_Completo   Resultados_Analisis_Completo[]
-  Resultados_Precio_Venta        Resultados_Precio_Venta[]
-  Resultados_Punto_Equilibrio    Resultados_Punto_Equilibrio[]
-  
-  // Nuevas relaciones
-  Productos                      Productos[]
-  CostosFijos                    CostosFijos[]
-  CostosVariables                CostosVariables[]
-  Personal                       Personal[]
-  
-  // 🆕 NUEVAS RELACIONES PARA PRECIOS DE VENTA
-  AnalisisPreciosProducto        AnalisisPreciosProducto[]
-  ResumenCostosGanancias         ResumenCostosGanancias[]
-  
+  negocio_id                   Int                            @id @default(autoincrement())
+  usuario_id                   Int
+  nombre_negocio               String                         @db.VarChar(200)
+  id_tamano                    Int
+  fecha_creacion               DateTime?                      @default(now()) @db.Timestamp(6)
+  aforo_personas               Int
+  capital_prestamo             Decimal?                       @db.Decimal(15, 2)
+  capital_propio               Decimal?                       @db.Decimal(15, 2)
+  inversion_inicial            Decimal                        @db.Decimal(15, 2)
+  sector_id                    Int
+  tasa_interes                 Decimal?                       @db.Decimal(5, 2)
+  ubicacion_exacta             String?
+  AnalisisPreciosProducto      AnalisisPreciosProducto[]
+  Analisis_IA                  Analisis_IA[]
+  CostosFijos                  CostosFijos[]
+  CostosVariables              CostosVariables[]
+  ItemsInversion               ItemsInversion[]
+  NegocioProgresoPaso          NegocioProgresoPaso[]
+  TamanosNegocio               TamanosNegocio                 @relation(fields: [id_tamano], references: [id_tamano], onDelete: NoAction, onUpdate: NoAction)
+  Sectores                     Sectores                       @relation(fields: [sector_id], references: [sector_id], onDelete: NoAction, onUpdate: NoAction)
+  Usuarios                     Usuarios                       @relation(fields: [usuario_id], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
+  Personal                     Personal[]
+  Productos                    Productos[]
+  Registros_financieros        Registros_financieros[]
+  Resultados_Analisis_Completo Resultados_Analisis_Completo[]
+  Resultados_Precio_Venta      Resultados_Precio_Venta[]
+  Resultados_Punto_Equilibrio  Resultados_Punto_Equilibrio[]
+  Resultados_Validacion_Costos Resultados_Validacion_Costos[]
+  ResumenCostosGanancias       ResumenCostosGanancias?
+
   @@map("Negocios")
 }
 
-// ========================================
-// MODELOS DE PRODUCTOS Y RECETAS
-// ========================================
-
 model CategoriasProducto {
-  categoria_id    Int        @id @default(autoincrement())
-  nombre          String     @db.VarChar(100)
-  descripcion     String?
-  Productos       Productos[]
+  categoria_id Int         @id @default(autoincrement())
+  nombre       String      @db.VarChar(100)
+  descripcion  String?
+  Productos    Productos[]
 }
 
 model UnidadMedida {
-  unidad_id       Int        @id @default(autoincrement())
-  nombre          String     @db.VarChar(50) @unique
-  abreviatura     String     @db.VarChar(10)
-  Productos       Productos[]
+  unidad_id       Int               @id @default(autoincrement())
+  nombre          String            @unique @db.VarChar(50)
+  abreviatura     String            @db.VarChar(10)
   CostosVariables CostosVariables[]
+  Productos       Productos[]
 }
 
 model Productos {
-  producto_id           Int                @id @default(autoincrement())
-  negocio_id            Int
-  categoria_id          Int
-  unidad_medida_id      Int
-  nombre_producto       String             @db.VarChar(200)
-  precio_por_unidad     Decimal            @db.Decimal(10, 2)
-  porcion_requerida     Decimal            @db.Decimal(10, 2)
-  porcion_unidad        Decimal?           @db.Decimal(10, 2)
-  costo_por_unidad      Decimal            @db.Decimal(10, 2)
-  
-  // 🆕 NUEVOS CAMPOS PARA PRECIOS DE VENTA
-  precio_venta_cliente      Decimal?           @db.Decimal(10, 2) // Precio que establece el cliente
-  precio_venta_sugerido_ia  Decimal?           @db.Decimal(10, 2) // Precio sugerido por IA
-  margen_ganancia_ia        Decimal?           @db.Decimal(5, 2)  // Margen sugerido por IA (%)
-  margen_ganancia_real      Decimal?           @db.Decimal(5, 2)  // Margen real del cliente (%)
-  ganancia_por_unidad       Decimal?           @db.Decimal(10, 2) // Ganancia calculada
-  costo_total_producto      Decimal?           @db.Decimal(10, 2) // Costo total (variable + adicionales)
-  
-  // Relaciones
-  Negocios              Negocios           @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
-  CategoriasProducto    CategoriasProducto @relation(fields: [categoria_id], references: [categoria_id], onDelete: NoAction, onUpdate: NoAction)
-  UnidadMedida          UnidadMedida       @relation(fields: [unidad_medida_id], references: [unidad_id], onDelete: NoAction, onUpdate: NoAction)
-  
-  // Relaciones con recetas
-  Recetas               Recetas[]
-  CostosVariables       CostosVariables[]
-  
-  // 🆕 NUEVA RELACIÓN
-  AnalisisPreciosProducto AnalisisPreciosProducto[]
-  
+  producto_id              Int                       @id @default(autoincrement())
+  negocio_id               Int
+  categoria_id             Int
+  unidad_medida_id         Int
+  nombre_producto          String                    @db.VarChar(200)
+  precio_por_unidad        Decimal                   @db.Decimal(10, 2)
+  porcion_requerida        Decimal                   @db.Decimal(10, 2)
+  porcion_unidad           Decimal?                  @db.Decimal(10, 2)
+  costo_por_unidad         Decimal                   @db.Decimal(10, 2)
+  precio_venta_cliente     Decimal?                  @db.Decimal(10, 2)
+  precio_venta_sugerido_ia Decimal?                  @db.Decimal(10, 2)
+  margen_ganancia_ia       Decimal?                  @db.Decimal(5, 2)
+  margen_ganancia_real     Decimal?                  @db.Decimal(5, 2)
+  ganancia_por_unidad      Decimal?                  @db.Decimal(10, 2)
+  costo_total_producto     Decimal?                  @db.Decimal(10, 2)
+  AnalisisPreciosProducto  AnalisisPreciosProducto[]
+  CostosVariables          CostosVariables[]
+  CategoriasProducto       CategoriasProducto        @relation(fields: [categoria_id], references: [categoria_id], onDelete: NoAction, onUpdate: NoAction)
+  Negocios                 Negocios                  @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
+  UnidadMedida             UnidadMedida              @relation(fields: [unidad_medida_id], references: [unidad_id], onDelete: NoAction, onUpdate: NoAction)
+  Recetas                  Recetas[]
+
   @@map("Productos")
 }
 
-// 🆕 NUEVO MODELO PARA ANÁLISIS DE PRECIOS POR PRODUCTO
 model AnalisisPreciosProducto {
-  analisis_id               Int         @id @default(autoincrement())
-  producto_id               Int
-  negocio_id                Int
-  fecha_analisis            DateTime    @default(now()) @db.Timestamp(6)
-  
-  // Costos del producto
-  costo_materia_prima       Decimal     @db.Decimal(10, 2)
-  costo_mano_obra           Decimal     @db.Decimal(10, 2)
-  costos_adicionales        Decimal     @db.Decimal(10, 2)
-  costo_total_producto      Decimal     @db.Decimal(10, 2)
-  
-  // Precios y márgenes
-  precio_venta_sugerido_ia  Decimal     @db.Decimal(10, 2)
-  margen_ganancia_sugerido  Decimal     @db.Decimal(5, 2)  // Porcentaje
-  precio_venta_cliente      Decimal     @db.Decimal(10, 2)
-  margen_ganancia_real      Decimal     @db.Decimal(5, 2)  // Porcentaje
-  
-  // Cálculos de rentabilidad
-  ganancia_por_unidad       Decimal     @db.Decimal(10, 2)
-  rentabilidad_producto     Decimal     @db.Decimal(5, 2)  // Porcentaje
-  
-  // Análisis de mercado
-  precio_promedio_mercado   Decimal?    @db.Decimal(10, 2)
-  posicionamiento_precio    String?     @db.VarChar(50)    // alto, medio, bajo
-  recomendaciones_precio    Json?       // Array de recomendaciones
-  
-  // Estado del análisis
-  estado_analisis           String      @default("pendiente") @db.VarChar(50)
-  fecha_actualizacion      DateTime    @updatedAt @db.Timestamp(6)
-  
-  // Relaciones
-  Productos                 Productos   @relation(fields: [producto_id], references: [producto_id], onDelete: NoAction, onUpdate: NoAction)
-  Negocios                  Negocios    @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
-  
+  analisis_id              Int       @id @default(autoincrement())
+  producto_id              Int
+  negocio_id               Int
+  fecha_analisis           DateTime  @default(now()) @db.Timestamp(6)
+  costo_materia_prima      Decimal   @db.Decimal(10, 2)
+  costo_mano_obra          Decimal   @db.Decimal(10, 2)
+  costos_adicionales       Decimal   @db.Decimal(10, 2)
+  costo_total_producto     Decimal   @db.Decimal(10, 2)
+  precio_venta_sugerido_ia Decimal   @db.Decimal(10, 2)
+  margen_ganancia_sugerido Decimal   @db.Decimal(5, 2)
+  precio_venta_cliente     Decimal   @db.Decimal(10, 2)
+  margen_ganancia_real     Decimal   @db.Decimal(5, 2)
+  ganancia_por_unidad      Decimal   @db.Decimal(10, 2)
+  rentabilidad_producto    Decimal   @db.Decimal(5, 2)
+  precio_promedio_mercado  Decimal?  @db.Decimal(10, 2)
+  posicionamiento_precio   String?   @db.VarChar(50)
+  recomendaciones_precio   Json?
+  estado_analisis          String    @default("pendiente") @db.VarChar(50)
+  fecha_actualizacion      DateTime  @updatedAt @db.Timestamp(6)
+  Negocios                 Negocios  @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
+  Productos                Productos @relation(fields: [producto_id], references: [producto_id], onDelete: NoAction, onUpdate: NoAction)
+
   @@unique([producto_id, negocio_id], map: "unique_analisis_producto_negocio")
   @@map("AnalisisPreciosProducto")
 }
 
-// 🆕 MODELO PARA RESUMEN GENERAL DE COSTOS Y GANANCIAS
 model ResumenCostosGanancias {
-  resumen_id                Int         @id @default(autoincrement())
-  negocio_id                Int
-  fecha_analisis            DateTime    @default(now()) @db.Timestamp(6)
-  
-  // Resumen de costos totales
-  costo_total_productos     Decimal     @db.Decimal(15, 2)
-  costo_total_adicionales   Decimal     @db.Decimal(15, 2)
-  costo_total_general       Decimal     @db.Decimal(15, 2)
-  
-  // Resumen de precios y ganancias
-  precio_venta_total_sugerido Decimal   @db.Decimal(15, 2)
-  precio_venta_total_cliente   Decimal  @db.Decimal(15, 2)
-  ganancia_total_sugerida      Decimal  @db.Decimal(15, 2)
-  ganancia_total_real           Decimal  @db.Decimal(15, 2)
-  
-  // Métricas de rentabilidad
-  margen_ganancia_promedio     Decimal  @db.Decimal(5, 2)   // Porcentaje
-  rentabilidad_total_negocio   Decimal  @db.Decimal(5, 2)   // Porcentaje
-  roi_estimado                 Decimal  @db.Decimal(5, 2)   // Porcentaje
-  
-  // Análisis de productos
-  producto_mas_rentable        String?   @db.VarChar(200)
-  producto_menos_rentable      String?   @db.VarChar(200)
-  productos_analizados         Int       @default(0)
-  
-  // Relaciones
-  Negocios                     Negocios  @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
-  
-  @@unique([negocio_id], map: "unique_resumen_negocio")
+  resumen_id                  Int      @id @default(autoincrement())
+  negocio_id                  Int      @unique(map: "unique_resumen_negocio")
+  fecha_analisis              DateTime @default(now()) @db.Timestamp(6)
+  costo_total_productos       Decimal  @db.Decimal(15, 2)
+  costo_total_adicionales     Decimal  @db.Decimal(15, 2)
+  costo_total_general         Decimal  @db.Decimal(15, 2)
+  precio_venta_total_sugerido Decimal  @db.Decimal(15, 2)
+  precio_venta_total_cliente  Decimal  @db.Decimal(15, 2)
+  ganancia_total_sugerida     Decimal  @db.Decimal(15, 2)
+  ganancia_total_real         Decimal  @db.Decimal(15, 2)
+  margen_ganancia_promedio    Decimal  @db.Decimal(5, 2)
+  rentabilidad_total_negocio  Decimal  @db.Decimal(5, 2)
+  roi_estimado                Decimal  @db.Decimal(5, 2)
+  producto_mas_rentable       String?  @db.VarChar(200)
+  producto_menos_rentable     String?  @db.VarChar(200)
+  productos_analizados        Int      @default(0)
+  Negocios                    Negocios @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
+
   @@map("ResumenCostosGanancias")
 }
 
 model Recetas {
-  receta_id            Int                @id @default(autoincrement())
-  producto_id          Int
-  nombre_receta        String             @db.VarChar(200)
-  tiempo_preparacion   Int?               // En minutos
-  personal_requerido   Int?               // Cantidad de personas
-  costos_adicionales   Decimal?           @db.Decimal(10, 2)
-  precio_venta         Decimal            @db.Decimal(10, 2)
-  
-  // Relaciones
-  Productos            Productos          @relation(fields: [producto_id], references: [producto_id], onDelete: NoAction, onUpdate: NoAction)
-  CostosVariables      CostosVariables[]
-  
+  receta_id          Int               @id @default(autoincrement())
+  producto_id        Int
+  nombre_receta      String            @db.VarChar(200)
+  tiempo_preparacion Int?
+  personal_requerido Int?
+  costos_adicionales Decimal?          @db.Decimal(10, 2)
+  precio_venta       Decimal           @db.Decimal(10, 2)
+  CostosVariables    CostosVariables[]
+  Productos          Productos         @relation(fields: [producto_id], references: [producto_id], onDelete: NoAction, onUpdate: NoAction)
+
   @@map("Recetas")
 }
 
-// ========================================
-// MODELOS DE COSTOS
-// ========================================
-
 model TiposCosto {
-  tipo_costo_id    Int        @id @default(autoincrement())
-  nombre           String     @db.VarChar(100) @unique
-  descripcion      String?
-  es_fijo          Boolean    @default(true)
-  CostosFijos      CostosFijos[]
-  CostosVariables  CostosVariables[]
+  tipo_costo_id   Int               @id @default(autoincrement())
+  nombre          String            @unique @db.VarChar(100)
+  descripcion     String?
+  es_fijo         Boolean           @default(true)
+  CostosFijos     CostosFijos[]
+  CostosVariables CostosVariables[]
 }
 
 model CostosFijos {
-  costo_fijo_id  Int                @id @default(autoincrement())
-  negocio_id     Int
-  tipo_costo_id  Int
-  nombre         String             @db.VarChar(200)
-  descripcion    String?
-  monto          Decimal            @db.Decimal(12, 2)
-  frecuencia     String             @db.VarChar(50)
-  fecha_inicio   DateTime?          @default(now()) @db.Timestamp(6)
-  fecha_fin      DateTime?
-  activo         Boolean            @default(true)
-  
-  // Relaciones
-  Negocios       Negocios           @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
-  TiposCosto     TiposCosto         @relation(fields: [tipo_costo_id], references: [tipo_costo_id], onDelete: NoAction, onUpdate: NoAction)
-  
+  costo_fijo_id Int        @id @default(autoincrement())
+  negocio_id    Int
+  tipo_costo_id Int
+  nombre        String     @db.VarChar(200)
+  descripcion   String?
+  monto         Decimal    @db.Decimal(12, 2)
+  frecuencia    String     @db.VarChar(50)
+  fecha_inicio  DateTime?  @default(now()) @db.Timestamp(6)
+  fecha_fin     DateTime?
+  activo        Boolean    @default(true)
+  Negocios      Negocios   @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
+  TiposCosto    TiposCosto @relation(fields: [tipo_costo_id], references: [tipo_costo_id], onDelete: NoAction, onUpdate: NoAction)
+
   @@map("CostosFijos")
 }
 
 model CostosVariables {
-  costo_variable_id Int                @id @default(autoincrement())
+  costo_variable_id Int          @id @default(autoincrement())
   negocio_id        Int
   producto_id       Int?
   receta_id         Int?
   tipo_costo_id     Int
-  nombre            String             @db.VarChar(200)
+  nombre            String       @db.VarChar(200)
   descripcion       String?
-  monto_por_unidad  Decimal           @db.Decimal(10, 2)
+  monto_por_unidad  Decimal      @db.Decimal(10, 2)
   unidad_medida_id  Int
-  activo            Boolean           @default(true)
-  
-  // Relaciones
-  Negocios          Negocios          @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
-  Productos         Productos?        @relation(fields: [producto_id], references: [producto_id], onDelete: NoAction, onUpdate: NoAction)
-  Recetas           Recetas?          @relation(fields: [receta_id], references: [receta_id], onDelete: NoAction, onUpdate: NoAction)
-  TiposCosto        TiposCosto        @relation(fields: [tipo_costo_id], references: [tipo_costo_id], onDelete: NoAction, onUpdate: NoAction)
-  UnidadMedida      UnidadMedida      @relation(fields: [unidad_medida_id], references: [unidad_id], onDelete: NoAction, onUpdate: NoAction)
-  
+  activo            Boolean      @default(true)
+  Negocios          Negocios     @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
+  Productos         Productos?   @relation(fields: [producto_id], references: [producto_id], onDelete: NoAction, onUpdate: NoAction)
+  Recetas           Recetas?     @relation(fields: [receta_id], references: [receta_id], onDelete: NoAction, onUpdate: NoAction)
+  TiposCosto        TiposCosto   @relation(fields: [tipo_costo_id], references: [tipo_costo_id], onDelete: NoAction, onUpdate: NoAction)
+  UnidadMedida      UnidadMedida @relation(fields: [unidad_medida_id], references: [unidad_id], onDelete: NoAction, onUpdate: NoAction)
+
   @@map("CostosVariables")
 }
 
-// ========================================
-// MODELOS DE PERSONAL
-// ========================================
-
 model CargosPersonal {
-  cargo_id        Int        @id @default(autoincrement())
-  nombre_cargo    String     @db.VarChar(100)
-  descripcion     String?
-  Personal        Personal[]
+  cargo_id     Int        @id @default(autoincrement())
+  nombre_cargo String     @db.VarChar(100)
+  descripcion  String?
+  Personal     Personal[]
 }
 
 model Personal {
-  personal_id       Int                @id @default(autoincrement())
-  negocio_id        Int
-  cargo_id          Int
-  nombre            String             @db.VarChar(150)
-  apellido          String             @db.VarChar(150)
-  salario_base      Decimal            @db.Decimal(10, 2)
-  horas_trabajo     Int?               // Horas por semana
-  fecha_contratacion DateTime?         @default(now()) @db.Timestamp(6)
-  activo            Boolean            @default(true)
-  
-  // Relaciones
-  Negocios          Negocios           @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
-  CargosPersonal    CargosPersonal     @relation(fields: [cargo_id], references: [cargo_id], onDelete: NoAction, onUpdate: NoAction)
-  
+  personal_id        Int            @id @default(autoincrement())
+  negocio_id         Int
+  cargo_id           Int
+  nombre             String         @db.VarChar(150)
+  apellido           String         @db.VarChar(150)
+  salario_base       Decimal        @db.Decimal(10, 2)
+  horas_trabajo      Int?
+  fecha_contratacion DateTime?      @default(now()) @db.Timestamp(6)
+  activo             Boolean        @default(true)
+  CargosPersonal     CargosPersonal @relation(fields: [cargo_id], references: [cargo_id], onDelete: NoAction, onUpdate: NoAction)
+  Negocios           Negocios       @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
+
   @@map("Personal")
 }
-
-// ========================================
-// MODELOS EXISTENTES (mantener compatibilidad)
-// ========================================
 
 model Analisis_IA {
   analisis_id                   Int                             @id @default(autoincrement())
   negocio_id                    Int
   fecha_analisis                DateTime?                       @default(now()) @db.Timestamp(6)
   Negocios                      Negocios                        @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
+  Resultados_Analisis_Completo  Resultados_Analisis_Completo[]
   Resultados_Costos_Analizados  Resultados_Costos_Analizados[]
   Resultados_Costos_Omitidos    Resultados_Costos_Omitidos[]
   Resultados_Plan_Accion        Resultados_Plan_Accion[]
-  Resultados_Riesgos_Detectados Resultados_Riesgos_Detectados[]
-  Resultados_Analisis_Completo  Resultados_Analisis_Completo[]
   Resultados_Precio_Venta       Resultados_Precio_Venta[]
   Resultados_Punto_Equilibrio   Resultados_Punto_Equilibrio[]
+  Resultados_Riesgos_Detectados Resultados_Riesgos_Detectados[]
 }
 
 model Aprendizaje {
@@ -338,20 +268,20 @@ model Estados {
 }
 
 model Modulos {
-  id_modulo             Int                     @id @default(autoincrement())
-  id_aprendizaje        Int
-  orden_modulo          Int?
-  nombre_modulo         String                  @db.VarChar(150)
-  titulo_conteido       String?                 @db.VarChar(255)
-  concepto              String
-  recurso_interactivo   String?                 @db.VarChar(255)
-  Aprendizaje                    Aprendizaje             @relation(fields: [id_aprendizaje], references: [id_aprendizaje], onDelete: NoAction, onUpdate: NoAction)
-  NegocioProgresoPaso            NegocioProgresoPaso[]
-  Registros_financieros          Registros_financieros[]
-  Resultados_Validacion_Costos   Resultados_Validacion_Costos[]
-  Resultados_Analisis_Completo   Resultados_Analisis_Completo[]
-  Resultados_Precio_Venta        Resultados_Precio_Venta[]
-  Resultados_Punto_Equilibrio    Resultados_Punto_Equilibrio[]
+  id_modulo                    Int                            @id @default(autoincrement())
+  id_aprendizaje               Int
+  orden_modulo                 Int?
+  nombre_modulo                String                         @db.VarChar(150)
+  titulo_conteido              String?                        @db.VarChar(255)
+  concepto                     String
+  recurso_interactivo          String?                        @db.VarChar(255)
+  Aprendizaje                  Aprendizaje                    @relation(fields: [id_aprendizaje], references: [id_aprendizaje], onDelete: NoAction, onUpdate: NoAction)
+  NegocioProgresoPaso          NegocioProgresoPaso[]
+  Registros_financieros        Registros_financieros[]
+  Resultados_Analisis_Completo Resultados_Analisis_Completo[]
+  Resultados_Precio_Venta      Resultados_Precio_Venta[]
+  Resultados_Punto_Equilibrio  Resultados_Punto_Equilibrio[]
+  Resultados_Validacion_Costos Resultados_Validacion_Costos[]
 }
 
 model NegocioProgresoPaso {
@@ -364,6 +294,7 @@ model NegocioProgresoPaso {
   Estados          Estados   @relation(fields: [id_estado], references: [id_estado], onDelete: NoAction, onUpdate: NoAction)
   Modulos          Modulos   @relation(fields: [modulo_id], references: [id_modulo], onDelete: NoAction, onUpdate: NoAction)
   Negocios         Negocios  @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
+
   @@unique([negocio_id, modulo_id], map: "unique_progreso_negocio_modulo")
   @@map("NegocioProgresoPaso")
 }
@@ -417,67 +348,58 @@ model Resultados_Riesgos_Detectados {
 }
 
 model Resultados_Validacion_Costos {
-  validacion_id              Int         @id @default(autoincrement())
-  negocio_id                 Int
-  modulo_id                  Int
-  fecha_validacion           DateTime?   @default(now()) @db.Timestamp(6)
-  costos_validados           Json?       // Array de costos validados
-  costos_faltantes           Json?       // Array de costos faltantes
-  resumen_validacion         Json?       // Resumen completo de validación
-  puntuacion_global          Int?        // Puntuación 1-10
-  puede_proseguir_analisis   Boolean     @default(false)
-  Negocios                   Negocios    @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
-  Modulos                    Modulos     @relation(fields: [modulo_id], references: [id_modulo], onDelete: NoAction, onUpdate: NoAction)
+  validacion_id            Int       @id @default(autoincrement())
+  negocio_id               Int
+  modulo_id                Int
+  fecha_validacion         DateTime? @default(now()) @db.Timestamp(6)
+  costos_validados         Json?
+  costos_faltantes         Json?
+  resumen_validacion       Json?
+  puntuacion_global        Int?
+  puede_proseguir_analisis Boolean   @default(false)
+  Modulos                  Modulos   @relation(fields: [modulo_id], references: [id_modulo], onDelete: NoAction, onUpdate: NoAction)
+  Negocios                 Negocios  @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model Resultados_Analisis_Completo {
-  resultado_id               Int         @id @default(autoincrement())
-  negocio_id                 Int
-  modulo_id                  Int
-  analisis_id                Int
-  fecha_analisis             DateTime?   @default(now()) @db.Timestamp(6)
-  costos_analizados          Json?       // Array completo de costos analizados
-  riesgos_detectados         Json?       // Array completo de riesgos detectados
-  plan_accion                Json?       // Array completo del plan de acción
-  resumen_analisis           Json?       // Resumen general del análisis
-  estado_guardado            String      @default("guardado") @db.VarChar(50)
-  Negocios                   Negocios    @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
-  Modulos                    Modulos     @relation(fields: [modulo_id], references: [id_modulo], onDelete: NoAction, onUpdate: NoAction)
-  Analisis_IA                Analisis_IA @relation(fields: [analisis_id], references: [analisis_id], onDelete: NoAction, onUpdate: NoAction)
+  resultado_id       Int         @id @default(autoincrement())
+  negocio_id         Int
+  modulo_id          Int
+  analisis_id        Int
+  fecha_analisis     DateTime?   @default(now()) @db.Timestamp(6)
+  costos_analizados  Json?
+  riesgos_detectados Json?
+  plan_accion        Json?
+  resumen_analisis   Json?
+  estado_guardado    String      @default("guardado") @db.VarChar(50)
+  Analisis_IA        Analisis_IA @relation(fields: [analisis_id], references: [analisis_id], onDelete: NoAction, onUpdate: NoAction)
+  Modulos            Modulos     @relation(fields: [modulo_id], references: [id_modulo], onDelete: NoAction, onUpdate: NoAction)
+  Negocios           Negocios    @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
+
   @@unique([negocio_id, modulo_id, analisis_id], map: "unique_resultado_completo")
 }
 
-// ========================================
-// NUEVOS MODELOS PARA ANÁLISIS DE IA
-// ========================================
-
 model Resultados_Precio_Venta {
-  resultado_id               Int         @id @default(autoincrement())
-  negocio_id                 Int
-  modulo_id                  Int
-  sector_id                  Int
-  analisis_id                Int
-  fecha_analisis             DateTime?   @default(now()) @db.Timestamp(6)
-  
-  // Campos para análisis de precio de venta
-  costos_fijos_totales       Decimal     @db.Decimal(15, 2)
-  costos_variables_totales   Decimal     @db.Decimal(15, 2)
-  margen_contribucion        Decimal     @db.Decimal(5, 2) // Porcentaje
-  precio_venta_sugerido      Decimal     @db.Decimal(10, 2)
-  precio_venta_competitivo   Decimal     @db.Decimal(10, 2)
-  rentabilidad_estimada      Decimal     @db.Decimal(5, 2) // Porcentaje
-  
-  // Análisis de mercado
-  precio_promedio_mercado    Decimal?    @db.Decimal(10, 2)
-  posicionamiento_precio     String?     @db.VarChar(100) // alto, medio, bajo
-  recomendaciones_precio     Json?       // Array de recomendaciones
-  
-  // Relaciones
-  Negocios                   Negocios    @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
-  Modulos                    Modulos     @relation(fields: [modulo_id], references: [id_modulo], onDelete: NoAction, onUpdate: NoAction)
-  Sectores                   Sectores    @relation(fields: [sector_id], references: [sector_id], onDelete: NoAction, onUpdate: NoAction)
-  Analisis_IA                Analisis_IA @relation(fields: [analisis_id], references: [analisis_id], onDelete: NoAction, onUpdate: NoAction)
-  
+  resultado_id             Int         @id @default(autoincrement())
+  negocio_id               Int
+  modulo_id                Int
+  sector_id                Int
+  analisis_id              Int
+  fecha_analisis           DateTime?   @default(now()) @db.Timestamp(6)
+  costos_fijos_totales     Decimal     @db.Decimal(15, 2)
+  costos_variables_totales Decimal     @db.Decimal(15, 2)
+  margen_contribucion      Decimal     @db.Decimal(5, 2)
+  precio_venta_sugerido    Decimal     @db.Decimal(10, 2)
+  precio_venta_competitivo Decimal     @db.Decimal(10, 2)
+  rentabilidad_estimada    Decimal     @db.Decimal(5, 2)
+  precio_promedio_mercado  Decimal?    @db.Decimal(10, 2)
+  posicionamiento_precio   String?     @db.VarChar(100)
+  recomendaciones_precio   Json?
+  Analisis_IA              Analisis_IA @relation(fields: [analisis_id], references: [analisis_id], onDelete: NoAction, onUpdate: NoAction)
+  Modulos                  Modulos     @relation(fields: [modulo_id], references: [id_modulo], onDelete: NoAction, onUpdate: NoAction)
+  Negocios                 Negocios    @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
+  Sectores                 Sectores    @relation(fields: [sector_id], references: [sector_id], onDelete: NoAction, onUpdate: NoAction)
+
   @@unique([negocio_id, modulo_id, analisis_id], map: "unique_resultado_precio_venta")
   @@map("Resultados_Precio_Venta")
 }
@@ -489,29 +411,39 @@ model Resultados_Punto_Equilibrio {
   sector_id                  Int
   analisis_id                Int
   fecha_analisis             DateTime?   @default(now()) @db.Timestamp(6)
-  
-  // Campos para análisis de punto de equilibrio
   costos_fijos_totales       Decimal     @db.Decimal(15, 2)
   costos_variables_totales   Decimal     @db.Decimal(15, 2)
   precio_venta_unitario      Decimal     @db.Decimal(10, 2)
   costo_variable_unitario    Decimal     @db.Decimal(10, 2)
-  
-  // Cálculos del punto de equilibrio
   punto_equilibrio_unidades  Decimal     @db.Decimal(10, 2)
   punto_equilibrio_ventas    Decimal     @db.Decimal(15, 2)
-  margen_seguridad           Decimal     @db.Decimal(5, 2) // Porcentaje
-  
-  // Análisis de sensibilidad
-  escenario_optimista        Json?       // Datos del escenario optimista
-  escenario_pesimista        Json?       // Datos del escenario pesimista
-  recomendaciones_equilibrio Json?       // Array de recomendaciones
-  
-  // Relaciones
-  Negocios                   Negocios    @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
-  Modulos                    Modulos     @relation(fields: [modulo_id], references: [id_modulo], onDelete: NoAction, onUpdate: NoAction)
-  Sectores                   Sectores    @relation(fields: [sector_id], references: [sector_id], onDelete: NoAction, onUpdate: NoAction)
+  margen_seguridad           Decimal     @db.Decimal(5, 2)
+  escenario_optimista        Json?
+  escenario_pesimista        Json?
+  recomendaciones_equilibrio Json?
   Analisis_IA                Analisis_IA @relation(fields: [analisis_id], references: [analisis_id], onDelete: NoAction, onUpdate: NoAction)
-  
+  Modulos                    Modulos     @relation(fields: [modulo_id], references: [id_modulo], onDelete: NoAction, onUpdate: NoAction)
+  Negocios                   Negocios    @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
+  Sectores                   Sectores    @relation(fields: [sector_id], references: [sector_id], onDelete: NoAction, onUpdate: NoAction)
+
   @@unique([negocio_id, modulo_id, analisis_id], map: "unique_resultado_punto_equilibrio")
   @@map("Resultados_Punto_Equilibrio")
+}
+
+model ItemsInversion {
+  item_id               Int       @id @default(autoincrement())
+  negocio_id            Int
+  nombre                String    @db.VarChar(200)
+  descripcion           String?
+  precio                Decimal   @db.Decimal(15, 2)
+  cantidad              Int       @default(1)
+  categoria             String?   @db.VarChar(100)
+  prioridad             String?   @db.VarChar(50)
+  fecha_compra_estimada DateTime?
+  activo                Boolean   @default(true)
+  fecha_creacion        DateTime  @default(now()) @db.Timestamp(6)
+  fecha_actualizacion   DateTime  @default(now()) @db.Timestamp(6)
+  Negocios              Negocios  @relation(fields: [negocio_id], references: [negocio_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("ItemsInversion")
 }

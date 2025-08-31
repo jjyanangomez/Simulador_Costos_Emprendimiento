@@ -47,40 +47,23 @@ const frequencyOptions = [
 ];
 
 // Simulación de validación con IA
-const validateCostWithAI = (cost: any, costTypes: any[]) => {
+const validateCostWithAI = (cost: any) => {
   const validations = [];
-  
-  // Obtener el nombre de la categoría para la validación
-  const categoryName = costTypes.find(type => type.tipo_costo_id.toString() === cost.category)?.nombre?.toLowerCase() || '';
   
   // Validaciones basadas en rangos típicos del mercado ecuatoriano
   const marketRanges: Record<string, { min: number; max: number; unit: string }> = {
-    'arriendo': { min: 800, max: 5000, unit: 'USD/mes' },
-    'renta': { min: 800, max: 5000, unit: 'USD/mes' },
-    'local': { min: 800, max: 5000, unit: 'USD/mes' },
-    'sueldos': { min: 425, max: 2000, unit: 'USD/mes por empleado' },
-    'salarios': { min: 425, max: 2000, unit: 'USD/mes por empleado' },
-    'personal': { min: 425, max: 2000, unit: 'USD/mes por empleado' },
-    'servicios': { min: 150, max: 800, unit: 'USD/mes' },
-    'básicos': { min: 150, max: 800, unit: 'USD/mes' },
-    'publicidad': { min: 200, max: 2000, unit: 'USD/mes' },
-    'marketing': { min: 200, max: 2000, unit: 'USD/mes' },
-    'licencias': { min: 50, max: 500, unit: 'USD/año' },
-    'permisos': { min: 50, max: 500, unit: 'USD/año' },
-    'seguros': { min: 100, max: 800, unit: 'USD/mes' },
-    'mantenimiento': { min: 100, max: 1000, unit: 'USD/mes' },
-    'transporte': { min: 200, max: 1500, unit: 'USD/mes' },
+    arriendo: { min: 800, max: 5000, unit: 'USD/mes' },
+    personal: { min: 425, max: 2000, unit: 'USD/mes por empleado' },
+    'seguridad-social': { min: 50, max: 200, unit: 'USD/mes por empleado' },
+    servicios: { min: 150, max: 800, unit: 'USD/mes' },
+    publicidad: { min: 200, max: 2000, unit: 'USD/mes' },
+    licencias: { min: 50, max: 500, unit: 'USD/año' },
+    seguros: { min: 100, max: 800, unit: 'USD/mes' },
+    mantenimiento: { min: 100, max: 1000, unit: 'USD/mes' },
+    transporte: { min: 200, max: 1500, unit: 'USD/mes' },
   };
 
-  // Buscar coincidencias en el nombre de la categoría
-  let range = null;
-  for (const [key, value] of Object.entries(marketRanges)) {
-    if (categoryName.includes(key)) {
-      range = value;
-      break;
-    }
-  }
-
+  const range = marketRanges[cost.category];
   if (range) {
     const monthlyAmount = cost.frequency === 'mensual' ? cost.amount : 
                          cost.frequency === 'semestral' ? cost.amount / 6 : 
@@ -146,7 +129,7 @@ export function FixedCostsPage() {
 
   const watchedCosts = watch('costs');
 
-  // Calcular totales - CORREGIDO para sumar todos los costos
+  // Calcular totales
   const calculateTotals = () => {
     let totalMonthly = 0;
     let totalYearly = 0;
@@ -169,7 +152,7 @@ export function FixedCostsPage() {
 
   const { totalMonthly, totalYearly } = calculateTotals();
 
-  // Cargar SOLO las categorías disponibles del backend
+  // Cargar tipos de costo y costos existentes
   useEffect(() => {
     const loadInitialData = async () => {
       try {
@@ -177,26 +160,63 @@ export function FixedCostsPage() {
 
         console.log('🔍 Intentando conectar con el backend...');
         
-        // SOLO cargar tipos de costo (categorías disponibles)
-        console.log('📋 Cargando categorías disponibles...');
+        // Cargar tipos de costo
+        console.log('📋 Cargando tipos de costo...');
         const costTypesResponse = await apiService.getCostTypes();
-        console.log('✅ Respuesta categorías:', costTypesResponse);
+        console.log('✅ Respuesta tipos de costo:', costTypesResponse);
         
         if (costTypesResponse.data) {
           setCostTypes(costTypesResponse.data);
-          console.log(`📊 ${costTypesResponse.data.length} categorías cargadas`);
+          console.log(`📊 ${costTypesResponse.data.length} tipos de costo cargados`);
         } else {
-          console.warn('⚠️ No se recibieron categorías del backend');
+          console.warn('⚠️ No se recibieron datos de tipos de costo');
           setCostTypes([]);
         }
         
-        // NO cargar costos existentes - el usuario los ingresará manualmente
+        // Cargar costos fijos existentes
+        console.log('💰 Cargando costos fijos existentes...');
+        const existingCostsResponse = await apiService.getFixedCosts(negocioId);
+        console.log('✅ Respuesta costos existentes:', existingCostsResponse);
         
+        if (existingCostsResponse.data && existingCostsResponse.data.length > 0) {
+          // Mapear los costos del backend al formato del frontend
+          const mappedCosts = existingCostsResponse.data.map((cost: any) => ({
+            name: cost.nombre,
+            description: cost.descripcion || '',
+            amount: Number(cost.monto),
+            frequency: cost.frecuencia,
+            category: cost.tipo_costo_id.toString(), // Convertir a string para el select
+          }));
+          
+          console.log('🔄 Mapeando costos existentes:', mappedCosts);
+          
+          // Actualizar el formulario con los costos existentes
+          mappedCosts.forEach((cost: any, index: number) => {
+            setValue(`costs.${index}.name`, cost.name);
+            setValue(`costs.${index}.description`, cost.description);
+            setValue(`costs.${index}.amount`, cost.amount);
+            setValue(`costs.${index}.frequency`, cost.frequency);
+            setValue(`costs.${index}.category`, cost.category);
+          });
+          
+          // Agregar campos adicionales si hay más costos que el default
+          if (mappedCosts.length > 1) {
+            for (let i = 1; i < mappedCosts.length; i++) {
+              append({
+                name: mappedCosts[i].name,
+                description: mappedCosts[i].description,
+                amount: mappedCosts[i].amount,
+                frequency: mappedCosts[i].frequency,
+                category: mappedCosts[i].category,
+              });
+            }
+          }
+        }
       } catch (error) {
-        console.error('💥 Error cargando categorías:', error);
+        console.error('💥 Error cargando datos iniciales:', error);
         const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
         console.error('Error de conexión:', errorMessage);
-        toast.error('Error al cargar las categorías disponibles');
+        toast.error('Error al cargar los datos iniciales');
         
         // Fallback: usar categorías hardcodeadas si falla la conexión
         setCostTypes([
@@ -212,13 +232,13 @@ export function FixedCostsPage() {
     };
 
     loadInitialData();
-  }, []); // Solo se ejecuta una vez al cargar la página
+  }, [negocioId, setValue, append]);
 
-  // Validar costo con IA - CORREGIDO para usar categorías del backend
+  // Validar costo con IA
   const validateCost = (index: number) => {
     const cost = watchedCosts[index];
-    if (cost.name && cost.amount && cost.category && costTypes.length > 0) {
-      const validations = validateCostWithAI(cost, costTypes);
+    if (cost.name && cost.amount && cost.category) {
+      const validations = validateCostWithAI(cost);
       setAiValidations(prev => ({ ...prev, [index]: validations }));
     }
   };
@@ -237,8 +257,6 @@ export function FixedCostsPage() {
     setIsSubmitting(true);
     
     try {
-      console.log('🚀 Guardando costos fijos...', data.costs);
-      
       // Guardar cada costo en el backend
       const savePromises = data.costs.map(async (cost) => {
         // Mapear el formato del frontend al formato del backend
@@ -252,20 +270,18 @@ export function FixedCostsPage() {
           activo: true
         };
         
-        console.log('📤 Enviando costo al backend:', backendCostData);
         return apiService.createFixedCost(backendCostData);
       });
       
       // Esperar a que se guarden todos los costos
-      const results = await Promise.all(savePromises);
-      console.log('✅ Costos guardados:', results);
+      await Promise.all(savePromises);
       
-      toast.success(`¡${data.costs.length} costos fijos guardados exitosamente en la base de datos!`);
+      toast.success('¡Costos fijos guardados exitosamente en la base de datos!');
       
       // Navegar al siguiente paso
       navigate('/variable-costs');
     } catch (error) {
-      console.error('❌ Error al guardar los costos fijos:', error);
+      console.error('Error al guardar los costos fijos:', error);
       toast.error('Error al guardar los costos fijos en la base de datos');
     } finally {
       setIsSubmitting(false);
@@ -304,7 +320,7 @@ export function FixedCostsPage() {
           </h1>
           <p className="text-lg text-gray-600">
             Ingresa todos los costos fijos mensuales de tu negocio. 
-            Selecciona una categoría y la IA validará que estén dentro de rangos razonables del mercado.
+            La IA validará que estén dentro de rangos razonables del mercado.
           </p>
           
           {/* Indicador de estado de conexión */}
@@ -322,7 +338,7 @@ export function FixedCostsPage() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-gray-900">Resumen de Costos</h2>
             <div className="text-xs text-gray-500">
-              💾 Los costos se guardan al hacer clic en "Guardar y Continuar"
+              💾 Los costos se guardan automáticamente en la base de datos
             </div>
           </div>
           <div className="grid md:grid-cols-3 gap-6">

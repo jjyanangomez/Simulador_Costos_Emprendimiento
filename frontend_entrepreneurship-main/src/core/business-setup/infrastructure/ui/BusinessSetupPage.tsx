@@ -98,6 +98,61 @@ export function BusinessSetupPage() {
     return isNaN(numValue) ? '0.00' : numValue.toFixed(2);
   };
   
+  // Función para guardar negocio y generar análisis de IA
+  const saveBusinessAndGenerateAnalysis = async (data: BusinessSetupForm) => {
+    setIsSubmitting(true);
+    
+    try {
+      console.log('🚀 Guardando negocio en la base de datos...');
+      
+      // Importar el servicio
+      const { BusinessBackendService } = await import('../../services/BusinessBackendService');
+      
+      // Preparar datos del negocio para el backend
+      const businessData = {
+        usuarioId: 4, // Usuario que creamos en el backend
+        nombreNegocio: data.businessName,
+        ubicacionExacta: data.exactLocation || 'Ubicación no especificada',
+        idTamano: 1, // Tamaño "Pequeño" que ya existe
+        sectorId: 1, // Sector "Restaurantes y Cafeterías" que ya existe
+        aforoPersonas: data.capacity,
+        inversionInicial: data.investmentItems?.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) || 0,
+        capitalPropio: data.financingType === 'personal' ? data.investmentItems?.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) || 0 : data.ownCapital || 0,
+        capitalPrestamo: data.financingType === 'prestamo' ? data.investmentItems?.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) || 0 : data.loanCapital || 0,
+        tasaInteres: data.interestRate || 0
+      };
+      
+      // Preparar items de inversión para el backend
+      const investmentItems = data.investmentItems?.map(item => ({
+        negocio_id: 0, // Se asignará cuando se cree el negocio
+        nombre: item.description || 'Item sin nombre',
+        descripcion: item.description,
+        precio: Number(item.amount) || 0,
+        cantidad: 1,
+        categoria: 'General',
+        prioridad: 'media',
+        fecha_compra_estimada: null // Usar null en lugar de cadena vacía
+      })) || [];
+      
+      // Crear negocio completo en el backend
+      const result = await BusinessBackendService.createCompleteBusiness(businessData, investmentItems);
+      
+      console.log('✅ Negocio guardado exitosamente en el backend:', result);
+      
+      // Ahora que está guardado, generar el análisis de IA
+      await generateAIAnalysis(data);
+      
+      // Mostrar el modal después de completar todo
+      setShowAnalysisModal(true);
+      
+    } catch (error) {
+      console.error('❌ Error al guardar en el backend:', error);
+      toast.error('Error al guardar la configuración en el backend');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Función para generar análisis de IA
   const generateAIAnalysis = async (data: BusinessSetupForm) => {
     setIsAnalyzing(true);
@@ -384,7 +439,10 @@ export function BusinessSetupPage() {
       }
       
       setAiAnalysis(analysis);
-      setShowAnalysisModal(true);
+      // Solo mostrar el modal si no estamos en proceso de guardado
+      if (!isSubmitting) {
+        setShowAnalysisModal(true);
+      }
       
       // ===== IMPRIMIR TODOS LOS DATOS GENERADOS POR LA IA EN CONSOLA =====
       console.log('\n🤖 ================== ANÁLISIS DE IA GENERADO ==================');
@@ -641,9 +699,9 @@ export function BusinessSetupPage() {
   };
 
   const onSubmit = async (data: BusinessSetupForm) => {
-    // Si no hay análisis de IA, generarlo primero
+    // Si no hay análisis de IA, guardar primero y luego generar análisis
     if (!aiAnalysis) {
-      await generateAIAnalysis(data);
+      await saveBusinessAndGenerateAnalysis(data);
       return;
     }
     
@@ -663,26 +721,18 @@ export function BusinessSetupPage() {
       return;
     }
 
-    setIsSubmitting(true);
-    
     try {
-      // Aquí se enviarían los datos al backend
-      console.log('Datos del negocio:', watchedValues);
-      console.log('Análisis de IA:', aiAnalysis);
+      console.log('🚀 Continuando a la siguiente página...');
       
-      // Simular envío
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      toast.success('¡Configuración del negocio guardada exitosamente! Continuando a costos fijos...');
+      toast.success('¡Continuando a costos fijos...');
       
       // Cerrar modal y navegar al siguiente paso
       setShowAnalysisModal(false);
       navigate('/fixed-costs');
+      
     } catch (error) {
-      toast.error('Error al guardar la configuración');
-      console.error('Error:', error);
-    } finally {
-      setIsSubmitting(false);
+      console.error('❌ Error al navegar:', error);
+      toast.error('Error al continuar a la siguiente página');
     }
   };
 

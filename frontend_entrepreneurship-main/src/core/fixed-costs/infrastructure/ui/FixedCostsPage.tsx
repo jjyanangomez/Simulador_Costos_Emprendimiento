@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { BusinessAnalysisService } from '../../../../shared/services/BusinessAnalysisService';
+import { FixedCostsAnalysisService } from '../../../../shared/services/FixedCostsAnalysisService';
+import { LocalStorageService } from '../../../../shared/services/LocalStorageService';
 
 // Esquema de validación para costos fijos
 const fixedCostSchema = z.object({
@@ -854,14 +856,38 @@ export function FixedCostsPage() {
 
   const watchedCosts = watch('costs');
 
-  // Resetear el formulario solo la primera vez cuando se cargan los datos del negocio
+  /**
+   * Inicializa el formulario con prioridad de datos:
+   * 1. Costos fijos guardados en localStorage (si existen)
+   * 2. Costos esenciales precargados (si no hay datos guardados)
+   * 3. Formulario vacío (si no hay datos del negocio)
+   */
   useEffect(() => {
-    if (businessData && !isFormInitialized && essentialCosts.length > 0) {
-      reset({
-        costs: essentialCosts,
-      });
+    if (businessData && !isFormInitialized) {
+      // Prioridad 1: Cargar costos fijos guardados en localStorage
+      try {
+        const businessId = businessData.businessName || 'default';
+        const storedCosts = LocalStorageService.loadFixedCosts(businessId);
+        
+        if (storedCosts && storedCosts.length > 0) {
+          // Usar los costos guardados en localStorage
+          reset({ costs: storedCosts });
+          toast.success('Costos fijos cargados desde el guardado anterior');
+          setIsFormInitialized(true);
+          return; // Salir aquí para NO cargar los costos esenciales
+        }
+      } catch (error) {
+        console.error('Error al cargar costos fijos desde localStorage:', error);
+      }
+      
+      // Prioridad 2: Si no hay costos guardados, usar los costos esenciales precargados
+      if (essentialCosts.length > 0) {
+        reset({
+          costs: essentialCosts,
+        });
+      }
+      
       setIsFormInitialized(true);
-      console.log('📝 Formulario inicializado con costos precargados');
     } else if (!businessData && !isFormInitialized) {
       // Si no hay datos del negocio, inicializar con un costo básico
       reset({
@@ -874,7 +900,6 @@ export function FixedCostsPage() {
         }],
       });
       setIsFormInitialized(true);
-      console.log('📝 Formulario inicializado sin datos del negocio');
     }
   }, [businessData, essentialCosts, isFormInitialized, reset]);
 
@@ -997,18 +1022,31 @@ export function FixedCostsPage() {
     setIsSubmitting(true);
     
     try {
+      // Guardar costos fijos en localStorage antes del análisis de IA
+      const businessId = businessData?.businessName || 'default';
+      LocalStorageService.saveFixedCosts(data.costs, businessId);
+      
       // Aquí se enviarían los datos al backend
       console.log('Costos fijos:', data);
       
       // Simular envío
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      toast.success('¡Costos fijos guardados exitosamente!');
+      // Ejecutar análisis de IA
+      console.log('🔍 Ejecutando análisis de IA para costos fijos...');
+      const analysisResult = FixedCostsAnalysisService.analyzeFixedCosts(data.costs);
       
-      // Navegar al siguiente paso
-      navigate('/variable-costs');
+      // Guardar resultado del análisis
+      FixedCostsAnalysisService.saveAnalysisResult(analysisResult);
+      
+      toast.success('¡Costos fijos guardados y analizados exitosamente!');
+      
+      // Navegar a la página de análisis
+      navigate('/fixed-costs-analysis', { 
+        state: { analysisResult } 
+      });
     } catch (error) {
-      toast.error('Error al guardar los costos fijos');
+      toast.error('Error al guardar o analizar los costos fijos');
       console.error('Error:', error);
     } finally {
       setIsSubmitting(false);

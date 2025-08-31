@@ -8,6 +8,7 @@ import { DashboardPage } from "../../../../core/dashboard/infrastructure/ui/Dash
 import { BusinessSetupPage } from "../../../../core/business-setup/infrastructure/ui/BusinessSetupPage";
 import { FixedCostsPage } from "../../../../core/fixed-costs/infrastructure/ui/FixedCostsPage";
 import { FixedCostsSummaryPage } from "../../../../core/fixed-costs/infrastructure/ui/FixedCostsSummaryPage";
+import { FixedCostsAnalysisPage } from "../../../../core/fixed-costs/infrastructure/ui/FixedCostsAnalysisPage";
 import { VariableCostsPage } from "../../../../core/variable-costs/infrastructure/ui/VariableCostsPage";
 import { ProfitabilityAnalysisPage } from "../../../../core/profitability-analysis/infrastructure/ui/ProfitabilityAnalysisPage";
 import { ResultsPage } from "../../../../core/results/infrastructure/ui/ResultsPage";
@@ -132,6 +133,20 @@ export const Routes = {
         title: "Resumen de Costos Fijos",
         path: "",
         element: FixedCostsSummaryPage,
+      },
+    },
+  },
+
+  fixedCostsAnalysis: {
+    path: "/fixed-costs-analysis",
+    layout: ({ children }: { children: React.ReactNode }) => (
+      <ProtectedRoute>{children}</ProtectedRoute>
+    ),
+    routes: {
+      index: {
+        title: "Análisis de IA - Costos Fijos",
+        path: "",
+        element: FixedCostsAnalysisPage,
       },
     },
   },

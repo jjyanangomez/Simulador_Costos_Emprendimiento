@@ -165,6 +165,7 @@ model Recetas {
   personal_requerido Int?
   costos_adicionales Decimal?          @db.Decimal(10, 2)
   precio_venta       Decimal           @db.Decimal(10, 2)
+  costo_receta       Decimal           @db.Decimal(10, 2)
   CostosVariables    CostosVariables[]
   Productos          Productos         @relation(fields: [producto_id], references: [producto_id], onDelete: NoAction, onUpdate: NoAction)
 
@@ -180,25 +181,11 @@ model TiposCosto {
   CostosVariables CostosVariables[]
 }
 
-model CategoriaActivoFijo {
-  categoria_id     Int        @id @default(autoincrement())
-  nombre          String     @db.VarChar(100) @unique
-  descripcion     String?
-  icono           String?    @db.VarChar(100)
-  color           String?    @db.VarChar(7)  // Formato hexadecimal #RRGGBB
-  activo          Boolean    @default(true)
-  fecha_creacion  DateTime   @default(now()) @db.Timestamp(6)
-  
-  // Relaciones
-  CostosFijos     CostosFijos[]
-  
-  @@map("CategoriaActivoFijo")
-}
-
 model CostosFijos {
   costo_fijo_id Int        @id @default(autoincrement())
   negocio_id    Int
   tipo_costo_id Int
+  categoria_id  Int?
   nombre        String     @db.VarChar(200)
   descripcion   String?
   monto         Decimal    @db.Decimal(12, 2)
@@ -208,6 +195,7 @@ model CostosFijos {
   activo        Boolean    @default(true)
   Negocios      Negocios   @relation(fields: [negocio_id], references: [negocio_id], onDelete: NoAction, onUpdate: NoAction)
   TiposCosto    TiposCosto @relation(fields: [tipo_costo_id], references: [tipo_costo_id], onDelete: NoAction, onUpdate: NoAction)
+  CategoriaActivoFijo CategoriaActivoFijo? @relation(fields: [categoria_id], references: [categoria_id], onDelete: NoAction, onUpdate: NoAction)
 
   @@map("CostosFijos")
 }
@@ -407,7 +395,7 @@ model Resultados_Precio_Venta {
   precio_venta_sugerido    Decimal     @db.Decimal(10, 2)
   precio_venta_competitivo Decimal     @db.Decimal(10, 2)
   rentabilidad_estimada    Decimal     @db.Decimal(5, 2)
-  precio_promedio_mercado  Decimal?    @db.Decimal(10, 2)
+  precio_promedio_mercado  Decimal?    @db.Decimal(10, 2) 
   posicionamiento_precio   String?     @db.VarChar(100)
   recomendaciones_precio   Json?
   Analisis_IA              Analisis_IA @relation(fields: [analisis_id], references: [analisis_id], onDelete: NoAction, onUpdate: NoAction)
@@ -417,6 +405,19 @@ model Resultados_Precio_Venta {
 
   @@unique([negocio_id, modulo_id, analisis_id], map: "unique_resultado_precio_venta")
   @@map("Resultados_Precio_Venta")
+}
+
+model CategoriaActivoFijo {
+  categoria_id     Int        @id @default(autoincrement())
+  nombre          String     @db.VarChar(100) @unique
+  descripcion     String?
+  icono           String?    @db.VarChar(100)
+  color           String?    @db.VarChar(7)  // Formato hexadecimal #RRGGBB
+  activo          Boolean    @default(true)
+  fecha_creacion  DateTime   @default(now()) @db.Timestamp(6)
+  CostosFijos     CostosFijos[]
+  
+  @@map("CategoriaActivoFijo")
 }
 
 model Resultados_Punto_Equilibrio {

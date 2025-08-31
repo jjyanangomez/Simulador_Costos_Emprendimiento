@@ -54,7 +54,7 @@ const frequencyOptions = [
 const baseCostRanges: Record<string, { min: number; max: number; unit: string; details?: string }> = {
   arriendo: { min: 400, max: 1200, unit: 'USD/mes', details: 'Locales comerciales pequeños a medianos' },
   personal: { min: 425, max: 3200, unit: 'USD/mes total', details: '1-4 empleados: $425-800 c/u + beneficios' },
-  'seguridad-social': { min: 45, max: 120, unit: 'USD/mes por empleado', details: 'IESS patronal (~11.15% del salario)' },
+  'seguridad-social': { min: 50, max: 100, unit: 'USD/mes por empleado', details: 'IESS patronal (~11.15% del salario básico)' },
   servicios: { min: 80, max: 250, unit: 'USD/mes', details: 'Luz, agua, internet, teléfono combinados' },
   publicidad: { min: 50, max: 400, unit: 'USD/mes', details: 'Marketing digital y tradicional' },
   licencias: { min: 100, max: 600, unit: 'USD/año', details: 'Permisos municipales y funcionamiento' },
@@ -66,12 +66,12 @@ const baseCostRanges: Record<string, { min: number; max: number; unit: string; d
 
 // Rangos específicos para servicios básicos individuales (Ecuador 2024)
 const specificServiceRanges: Record<string, { min: number; max: number; unit: string; details: string }> = {
-  electricidad: { min: 30, max: 150, unit: 'USD/mes', details: 'Consumo 300-1500 kWh a $0.095/kWh' },
-  luz: { min: 30, max: 150, unit: 'USD/mes', details: 'Consumo 300-1500 kWh a $0.095/kWh' },
-  agua: { min: 15, max: 80, unit: 'USD/mes', details: 'Consumo comercial promedio' },
-  internet: { min: 25, max: 100, unit: 'USD/mes', details: 'Planes comerciales 50-500 Mbps' },
-  telefono: { min: 15, max: 60, unit: 'USD/mes', details: 'Línea fija + celular corporativo' },
-  gas: { min: 20, max: 120, unit: 'USD/mes', details: 'Gas comercial para cocinas' },
+  electricidad: { min: 30, max: 120, unit: 'USD/mes', details: 'Consumo 300-1200 kWh a $0.095/kWh' },
+  luz: { min: 30, max: 120, unit: 'USD/mes', details: 'Consumo 300-1200 kWh a $0.095/kWh' },
+  agua: { min: 20, max: 60, unit: 'USD/mes', details: 'Consumo comercial básico a moderado' },
+  internet: { min: 25, max: 80, unit: 'USD/mes', details: 'Planes comerciales 50-300 Mbps' },
+  telefono: { min: 15, max: 45, unit: 'USD/mes', details: 'Línea fija + celular corporativo' },
+  gas: { min: 20, max: 100, unit: 'USD/mes', details: 'Gas comercial para cocinas' },
 };
 
 // Multiplicadores por tipo de negocio (más conservadores)
@@ -210,10 +210,20 @@ const estimateAmountByName = (costName: string, businessData: any): number | nul
     return Math.round(baseInsurance * sizeMultiplier);
   }
   
-  // Licencias y permisos
+  // Licencias y permisos (siempre anuales en Ecuador)
   if (costNameLower.includes('licencia') || costNameLower.includes('permiso')) {
-    const baseLicense = 300; // Anual, se ajustará según frecuencia
-    return baseLicense;
+    // Calcular licencias anuales basadas en el tipo de negocio y ubicación
+    let baseLicense = 250; // Base anual
+    
+    // Ajustar por tipo de negocio
+    if (businessType === 'restaurante') baseLicense = 400;
+    else if (businessType === 'bar') baseLicense = 450;
+    else if (businessType === 'cafeteria') baseLicense = 300;
+    
+    // Ajustar por ubicación (permisos municipales más caros en centros)
+    baseLicense = Math.round(baseLicense * locationMultiplier);
+    
+    return Math.max(200, Math.min(600, baseLicense)); // Limitar entre $200-$600
   }
   
   // Transporte
@@ -392,11 +402,20 @@ const getEssentialCostsTemplate = (businessData: any): FixedCostForm['costs'] =>
   }
 
   // 6. OTROS COSTOS IMPORTANTES
+  // Calcular licencias según tipo de negocio y ubicación
+  let licenseAmount = 250;
+  if (businessType === 'restaurante') licenseAmount = 400;
+  else if (businessType === 'bar') licenseAmount = 450;
+  else if (businessType === 'cafeteria') licenseAmount = 300;
+  
+  licenseAmount = Math.round(licenseAmount * locationMultiplier);
+  licenseAmount = Math.max(200, Math.min(600, licenseAmount));
+  
   baseCosts.push({
     name: 'Licencias y Permisos',
-    description: 'Permisos municipales y de funcionamiento',
-    amount: 300,
-            frequency: 'anual' as const,
+    description: 'Permisos municipales y de funcionamiento (anual)',
+    amount: licenseAmount,
+    frequency: 'anual' as const,
     category: 'licencias',
   });
 
@@ -528,7 +547,30 @@ const validateCostWithAI = (cost: any) => {
   const adjustedMin = Math.round(baseRange.min * categoryMultiplier);
   const adjustedMax = Math.round(baseRange.max * categoryMultiplier);
 
-  // Convertir a monto mensual
+  // Manejar costos anuales de manera especial
+  const isAnnualCost = cost.frequency === 'anual';
+  const actualAmount = cost.amount;
+  
+  // Para validación, convertir a la misma unidad que el rango base
+  let comparisonAmount;
+  let comparisonMin;
+  let comparisonMax;
+  
+  if (isAnnualCost && baseRange.unit.includes('año')) {
+    // Comparar anuales con anuales (como licencias)
+    comparisonAmount = actualAmount;
+    comparisonMin = adjustedMin;
+    comparisonMax = adjustedMax;
+  } else {
+    // Convertir todo a mensual para comparación
+    comparisonAmount = cost.frequency === 'mensual' ? cost.amount : 
+                      cost.frequency === 'semestral' ? cost.amount / 6 : 
+                      cost.amount / 12;
+    comparisonMin = baseRange.unit.includes('año') ? adjustedMin / 12 : adjustedMin;
+    comparisonMax = baseRange.unit.includes('año') ? adjustedMax / 12 : adjustedMax;
+  }
+  
+  // Mantener monthlyAmount para otros cálculos
   const monthlyAmount = cost.frequency === 'mensual' ? cost.amount : 
                        cost.frequency === 'semestral' ? cost.amount / 6 : 
                        cost.amount / 12;
@@ -545,38 +587,44 @@ const validateCostWithAI = (cost: any) => {
     serviceType = `costos de personal (estimado: ${estimatedEmployees} empleado${estimatedEmployees !== 1 ? 's' : ''})`;
   } else if (isSpecificService) {
     serviceType = `servicio específico de ${cost.name.toLowerCase()}`;
+  } else if (cost.category === 'licencias') {
+    const yearlyAmount = cost.frequency === 'anual' ? cost.amount : monthlyAmount * 12;
+    serviceType = `licencias y permisos (${cost.frequency === 'anual' ? `$${yearlyAmount.toFixed(2)} anuales` : `~$${yearlyAmount.toFixed(2)} anuales estimados`})`;
   } else {
     serviceType = `categoría "${cost.category}"`;
   }
   
-  // Validar y generar mensajes contextuales más precisos
-  if (monthlyAmount < adjustedMin * 0.6) {
+  // Validar y generar mensajes contextuales más precisos usando la unidad correcta
+  const unitText = isAnnualCost && baseRange.unit.includes('año') ? 'anuales' : 'mensuales';
+  const displayAmount = isAnnualCost && baseRange.unit.includes('año') ? actualAmount : monthlyAmount;
+  
+  if (comparisonAmount < comparisonMin * 0.7) {
     validations.push({
       type: 'error',
-      message: `💰 El monto de $${monthlyAmount.toFixed(2)} está muy por debajo del rango esperado para ${serviceType} en una ${businessContext}. Se esperaba entre $${adjustedMin} y $${adjustedMax} mensuales${detailMessage}. Verifica si el monto es correcto.`,
+      message: `💰 El monto de $${displayAmount.toFixed(2)} está muy por debajo del rango esperado para ${serviceType} en una ${businessContext}. Se esperaba entre $${comparisonMin.toFixed(2)} y $${comparisonMax.toFixed(2)} ${unitText}${detailMessage}. Verifica si el monto es correcto.`,
       severity: 'high'
     });
-  } else if (monthlyAmount < adjustedMin * 0.85) {
+  } else if (comparisonAmount < comparisonMin * 0.9) {
     validations.push({
       type: 'warning',
-      message: `📊 El monto de $${monthlyAmount.toFixed(2)} está por debajo del rango típico para ${serviceType} en una ${businessContext}. El rango esperado oscila entre $${adjustedMin} y $${adjustedMax} mensuales${detailMessage}.`,
+      message: `📊 El monto de $${displayAmount.toFixed(2)} está por debajo del rango típico para ${serviceType} en una ${businessContext}. El rango esperado oscila entre $${comparisonMin.toFixed(2)} y $${comparisonMax.toFixed(2)} ${unitText}${detailMessage}.`,
       severity: 'medium'
     });
-  } else if (monthlyAmount > adjustedMax * 1.4) {
+  } else if (comparisonAmount > comparisonMax * 1.3) {
     validations.push({
       type: 'error',
-      message: `⚠️ El monto de $${monthlyAmount.toFixed(2)} está significativamente por encima del rango esperado para ${serviceType} en una ${businessContext}. Se esperaba entre $${adjustedMin} y $${adjustedMax} mensuales${detailMessage}. Verifica si el monto es correcto.`,
+      message: `⚠️ El monto de $${displayAmount.toFixed(2)} está significativamente por encima del rango esperado para ${serviceType} en una ${businessContext}. Se esperaba entre $${comparisonMin.toFixed(2)} y $${comparisonMax.toFixed(2)} ${unitText}${detailMessage}. Verifica si el monto es correcto.`,
       severity: 'high'
     });
-  } else if (monthlyAmount > adjustedMax * 1.15) {
+  } else if (comparisonAmount > comparisonMax * 1.1) {
     validations.push({
       type: 'warning',
-      message: `📈 El monto de $${monthlyAmount.toFixed(2)} está ligeramente por encima del rango típico para ${serviceType} en una ${businessContext}. El rango esperado oscila entre $${adjustedMin} y $${adjustedMax} mensuales${detailMessage}.`,
+      message: `📈 El monto de $${displayAmount.toFixed(2)} está ligeramente por encima del rango típico para ${serviceType} en una ${businessContext}. El rango esperado oscila entre $${comparisonMin.toFixed(2)} y $${comparisonMax.toFixed(2)} ${unitText}${detailMessage}.`,
       severity: 'medium'
     });
   } else {
     // Determinar si está en el rango bajo, medio o alto
-    const rangePosition = (monthlyAmount - adjustedMin) / (adjustedMax - adjustedMin);
+    const rangePosition = (comparisonAmount - comparisonMin) / (comparisonMax - comparisonMin);
     let positionText = '';
     
     if (rangePosition < 0.3) {
@@ -589,7 +637,7 @@ const validateCostWithAI = (cost: any) => {
     
     validations.push({
       type: 'success',
-      message: `✅ El monto de $${monthlyAmount.toFixed(2)} está dentro del rango esperado para ${serviceType} en una ${businessContext} ($${adjustedMin}-$${adjustedMax} mensuales)${positionText}${detailMessage}.`,
+      message: `✅ El monto de $${displayAmount.toFixed(2)} está dentro del rango esperado para ${serviceType} en una ${businessContext} ($${comparisonMin.toFixed(2)}-$${comparisonMax.toFixed(2)} ${unitText})${positionText}${detailMessage}.`,
       severity: 'none'
     });
   }
@@ -658,11 +706,12 @@ const addContextualInsights = (validations: any[], cost: any, businessData: any,
       });
     }
   } else if (costNameLower.includes('agua')) {
-    if (businessType === 'restaurante' && monthlyAmount < 40) {
+    // Solo agregar insight si el monto está significativamente por debajo del ajustado mínimo
+    if (businessType === 'restaurante' && monthlyAmount < adjustedMin * 0.8) {
       validations.push({
-        type: 'warning',
-        message: `💧 Los restaurantes suelen consumir más agua por limpieza de vajilla, cocina y baños. $${monthlyAmount.toFixed(2)} podría ser insuficiente.`,
-        severity: 'medium'
+        type: 'info',
+        message: `💧 Los restaurantes suelen consumir más agua por limpieza de vajilla, cocina y baños. Considera si $${monthlyAmount.toFixed(2)} es suficiente para las operaciones diarias.`,
+        severity: 'none'
       });
     }
   } else if (costNameLower.includes('internet')) {
@@ -731,6 +780,24 @@ const addContextualInsights = (validations: any[], cost: any, businessData: any,
         validations.push({
           type: 'info',
           message: `📊 ${expectedEmployeesRange} Tu presupuesto actual cubre ${estimatedEmployees} empleado(s).`,
+          severity: 'none'
+        });
+      }
+      break;
+
+    case 'seguridad-social':
+      // Para seguridad social, la validación debe estar relacionada con el personal
+      const expectedIESS = Math.round(monthlyAmount / 55); // Estimar empleados basado en $55/empleado
+      if (expectedIESS < 1) {
+        validations.push({
+          type: 'warning',
+          message: `🏛️ El monto de $${monthlyAmount.toFixed(2)} para seguridad social parece muy bajo. El IESS patronal mínimo por empleado es ~$55/mes (11.15% del salario básico).`,
+          severity: 'medium'
+        });
+      } else {
+        validations.push({
+          type: 'info',
+          message: `🏛️ Seguridad Social: $${monthlyAmount.toFixed(2)} equivale a aportes patronales para ~${expectedIESS} empleado(s) a tarifa básica del IESS.`,
           severity: 'none'
         });
       }

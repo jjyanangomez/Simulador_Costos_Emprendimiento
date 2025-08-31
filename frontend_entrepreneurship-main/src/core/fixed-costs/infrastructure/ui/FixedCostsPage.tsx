@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MainLayout } from '../../../../shared/infrastructure/components/MainLayout';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
@@ -15,6 +15,7 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { apiService } from '../../../../shared/infrastructure/services/api.service';
 
 // Esquema de validación para costos fijos
 const fixedCostSchema = z.object({
@@ -29,18 +30,15 @@ const fixedCostSchema = z.object({
 
 type FixedCostForm = z.infer<typeof fixedCostSchema>;
 
-const costCategories = [
-  { value: 'arriendo', label: 'Arriendo/Renta del Local', icon: '🏠', description: 'Pago mensual del local' },
-  { value: 'personal', label: 'Sueldos y Salarios', icon: '👥', description: 'Remuneraciones del personal' },
-  { value: 'seguridad-social', label: 'Seguridad Social (IESS)', icon: '🛡️', description: 'Aportes patronales' },
-  { value: 'servicios', label: 'Servicios Básicos', icon: '⚡', description: 'Luz, agua, internet, etc.' },
-  { value: 'publicidad', label: 'Publicidad y Marketing', icon: '📢', description: 'Campañas publicitarias' },
-  { value: 'licencias', label: 'Licencias y Permisos', icon: '📋', description: 'Permisos municipales' },
-  { value: 'seguros', label: 'Seguros', icon: '🔒', description: 'Seguros empresariales' },
-  { value: 'mantenimiento', label: 'Mantenimiento', icon: '🔧', description: 'Local y equipos' },
-  { value: 'transporte', label: 'Transporte y Logística', icon: '🚚', description: 'Gastos de transporte' },
-  { value: 'otros', label: 'Otros Costos', icon: '📦', description: 'Costos adicionales' },
-];
+// Las categorías se cargarán dinámicamente desde el backend
+const getCostCategories = (costTypes: any[]) => {
+  return costTypes.map(type => ({
+    value: type.tipo_costo_id.toString(),
+    label: type.nombre,
+    icon: '💰', // Icono genérico
+    description: type.descripcion || 'Tipo de costo'
+  }));
+};
 
 const frequencyOptions = [
   { value: 'mensual', label: 'Mensual', multiplier: 1 },
@@ -99,11 +97,16 @@ export function FixedCostsPage() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [aiValidations, setAiValidations] = useState<Record<number, any[]>>({});
+  const [negocioId, setNegocioId] = useState<number>(1); // Por defecto, se puede obtener del contexto
+  const [costTypes, setCostTypes] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [connectionError, setConnectionError] = useState<string>('');
 
   const {
     control,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors, isValid },
   } = useForm<FixedCostForm>({
     resolver: zodResolver(fixedCostSchema),
@@ -132,19 +135,106 @@ export function FixedCostsPage() {
     let totalMonthly = 0;
     let totalYearly = 0;
 
-    watchedCosts.forEach((cost) => {
-      let monthlyAmount = cost.amount;
-      if (cost.frequency === 'semestral') monthlyAmount = cost.amount / 6;
-      if (cost.frequency === 'anual') monthlyAmount = cost.amount / 12;
-      
-      totalMonthly += monthlyAmount;
-      totalYearly += monthlyAmount * 12;
-    });
+    if (watchedCosts && Array.isArray(watchedCosts)) {
+      watchedCosts.forEach((cost) => {
+        if (cost && typeof cost.amount === 'number' && cost.amount > 0) {
+          let monthlyAmount = cost.amount;
+          if (cost.frequency === 'semestral') monthlyAmount = cost.amount / 6;
+          if (cost.frequency === 'anual') monthlyAmount = cost.amount / 12;
+          
+          totalMonthly += monthlyAmount;
+          totalYearly += monthlyAmount * 12;
+        }
+      });
+    }
 
     return { totalMonthly, totalYearly };
   };
 
   const { totalMonthly, totalYearly } = calculateTotals();
+
+  // Cargar tipos de costo y costos existentes
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        setIsLoading(true);
+        setConnectionError('');
+        
+        console.log('🔍 Intentando conectar con el backend...');
+        
+        // Cargar tipos de costo
+        console.log('📋 Cargando tipos de costo...');
+        const costTypesResponse = await apiService.getCostTypes();
+        console.log('✅ Respuesta tipos de costo:', costTypesResponse);
+        
+        if (costTypesResponse.data) {
+          setCostTypes(costTypesResponse.data);
+          console.log(`📊 ${costTypesResponse.data.length} tipos de costo cargados`);
+        } else {
+          console.warn('⚠️ No se recibieron datos de tipos de costo');
+          setCostTypes([]);
+        }
+        
+        // Cargar costos fijos existentes
+        console.log('💰 Cargando costos fijos existentes...');
+        const existingCostsResponse = await apiService.getFixedCosts(negocioId);
+        console.log('✅ Respuesta costos existentes:', existingCostsResponse);
+        
+        if (existingCostsResponse.data && existingCostsResponse.data.length > 0) {
+          // Mapear los costos del backend al formato del frontend
+          const mappedCosts = existingCostsResponse.data.map((cost: any) => ({
+            name: cost.nombre,
+            description: cost.descripcion || '',
+            amount: Number(cost.monto),
+            frequency: cost.frecuencia,
+            category: cost.tipo_costo_id.toString(), // Convertir a string para el select
+          }));
+          
+          console.log('🔄 Mapeando costos existentes:', mappedCosts);
+          
+          // Actualizar el formulario con los costos existentes
+          mappedCosts.forEach((cost: any, index: number) => {
+            setValue(`costs.${index}.name`, cost.name);
+            setValue(`costs.${index}.description`, cost.description);
+            setValue(`costs.${index}.amount`, cost.amount);
+            setValue(`costs.${index}.frequency`, cost.frequency);
+            setValue(`costs.${index}.category`, cost.category);
+          });
+          
+          // Agregar campos adicionales si hay más costos que el default
+          if (mappedCosts.length > 1) {
+            for (let i = 1; i < mappedCosts.length; i++) {
+              append({
+                name: mappedCosts[i].name,
+                description: mappedCosts[i].description,
+                amount: mappedCosts[i].amount,
+                frequency: mappedCosts[i].frequency,
+                category: mappedCosts[i].category,
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error('💥 Error cargando datos iniciales:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+        setConnectionError(`Error de conexión: ${errorMessage}`);
+        toast.error('Error al cargar los datos iniciales');
+        
+        // Fallback: usar categorías hardcodeadas si falla la conexión
+        setCostTypes([
+          { tipo_costo_id: 1, nombre: 'Arriendo/Renta del Local', descripcion: 'Pago mensual del local' },
+          { tipo_costo_id: 2, nombre: 'Sueldos y Salarios', descripcion: 'Remuneraciones del personal' },
+          { tipo_costo_id: 3, nombre: 'Servicios Básicos', descripcion: 'Luz, agua, internet, etc.' },
+          { tipo_costo_id: 4, nombre: 'Publicidad y Marketing', descripcion: 'Campañas publicitarias' },
+          { tipo_costo_id: 5, nombre: 'Otros Costos', descripcion: 'Costos adicionales' },
+        ]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadInitialData();
+  }, [negocioId, setValue, append]);
 
   // Validar costo con IA
   const validateCost = (index: number) => {
@@ -169,19 +259,32 @@ export function FixedCostsPage() {
     setIsSubmitting(true);
     
     try {
-      // Aquí se enviarían los datos al backend
-      console.log('Costos fijos:', data);
+      // Guardar cada costo en el backend
+      const savePromises = data.costs.map(async (cost) => {
+        // Mapear el formato del frontend al formato del backend
+        const backendCostData = {
+          negocioId: negocioId,
+          tipoCostoId: parseInt(cost.category), // Convertir string a number
+          nombre: cost.name,
+          descripcion: cost.description || '',
+          monto: cost.amount,
+          frecuencia: cost.frequency,
+          activo: true
+        };
+        
+        return apiService.createFixedCost(backendCostData);
+      });
       
-      // Simular envío
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Esperar a que se guarden todos los costos
+      await Promise.all(savePromises);
       
-      toast.success('¡Costos fijos guardados exitosamente!');
+      toast.success('¡Costos fijos guardados exitosamente en la base de datos!');
       
       // Navegar al siguiente paso
       navigate('/variable-costs');
     } catch (error) {
-      toast.error('Error al guardar los costos fijos');
-      console.error('Error:', error);
+      console.error('Error al guardar los costos fijos:', error);
+      toast.error('Error al guardar los costos fijos en la base de datos');
     } finally {
       setIsSubmitting(false);
     }
@@ -212,29 +315,96 @@ export function FixedCostsPage() {
   return (
     <MainLayout>
       <div className="max-w-6xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">
-            Costos Fijos del Negocio
-          </h1>
-          <p className="text-lg text-gray-600">
-            Ingresa todos los costos fijos mensuales de tu negocio. 
-            La IA validará que estén dentro de rangos razonables del mercado.
-          </p>
-        </div>
+                 {/* Header */}
+         <div className="text-center">
+           <h1 className="text-3xl font-bold text-gray-900 mb-4">
+             Costos Fijos del Negocio
+           </h1>
+           <p className="text-lg text-gray-600">
+             Ingresa todos los costos fijos mensuales de tu negocio. 
+             La IA validará que estén dentro de rangos razonables del mercado.
+           </p>
+           
+                       {/* Indicador de estado de conexión */}
+            {isLoading && (
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  🔄 Conectando con la base de datos...
+                </p>
+              </div>
+            )}
+            
+            {!isLoading && connectionError && (
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-800">
+                  ❌ {connectionError}
+                </p>
+                <p className="text-xs text-red-700 mt-1">
+                  💡 Usando categorías predefinidas como respaldo
+                </p>
+                <button
+                  onClick={() => {
+                    setConnectionError('');
+                    setCostTypes([]);
+                    // Recargar datos
+                    const loadInitialData = async () => {
+                      try {
+                        setIsLoading(true);
+                        const costTypesResponse = await apiService.getCostTypes();
+                        if (costTypesResponse.data) {
+                          setCostTypes(costTypesResponse.data);
+                          setConnectionError('');
+                        }
+                      } catch (error) {
+                        console.error('Error en reintento:', error);
+                      } finally {
+                        setIsLoading(false);
+                      }
+                    };
+                    loadInitialData();
+                  }}
+                  className="mt-2 px-3 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                >
+                  🔄 Reintentar conexión
+                </button>
+              </div>
+            )}
+            
+            {!isLoading && !connectionError && costTypes.length > 0 && (
+              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-sm text-green-800">
+                  ✅ Conectado al backend - {costTypes.length} tipos de costo disponibles
+                </p>
+              </div>
+            )}
+            
+            {/* Información de debugging */}
+            <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+              <p className="text-xs text-gray-600">
+                🔍 <strong>Debug:</strong> Backend URL: {import.meta.env.VITE_API_URL || 'http://localhost:3000'} | 
+                Negocio ID: {negocioId} | 
+                Tipos de costo: {costTypes.length}
+              </p>
+            </div>
+         </div>
 
-        {/* Resumen de costos */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Resumen de Costos</h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-primary-600">${totalMonthly.toFixed(2)}</div>
-              <div className="text-sm text-gray-600">Total Mensual</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-secondary-600">${totalYearly.toFixed(2)}</div>
-              <div className="text-sm text-gray-600">Total Anual</div>
-            </div>
+                 {/* Resumen de costos */}
+         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+           <div className="flex items-center justify-between mb-4">
+             <h2 className="text-xl font-semibold text-gray-900">Resumen de Costos</h2>
+             <div className="text-xs text-gray-500">
+               💾 Los costos se guardan automáticamente en la base de datos
+             </div>
+           </div>
+           <div className="grid md:grid-cols-3 gap-6">
+                         <div className="text-center">
+               <div className="text-2xl font-bold text-primary-600">${(totalMonthly || 0).toFixed(2)}</div>
+               <div className="text-sm text-gray-600">Total Mensual</div>
+             </div>
+             <div className="text-center">
+               <div className="text-2xl font-bold text-secondary-600">${(totalYearly || 0).toFixed(2)}</div>
+               <div className="text-sm text-gray-600">Total Anual</div>
+             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-gray-600">{fields.length}</div>
               <div className="text-sm text-gray-600">Costos Registrados</div>
@@ -329,23 +499,23 @@ export function FixedCostsPage() {
                               validateCost(index);
                             }}
                           >
-                            <option value="">Selecciona una categoría</option>
-                            {costCategories.map((category) => (
-                              <option key={category.value} value={category.value}>
-                                {category.icon} {category.label}
-                              </option>
-                            ))}
+                                                         <option value="">Selecciona una categoría</option>
+                             {getCostCategories(costTypes).map((category: any) => (
+                               <option key={category.value} value={category.value}>
+                                 {category.icon} {category.label}
+                               </option>
+                             ))}
                           </select>
                         )}
                       />
                       {errors.costs?.[index]?.category && (
                         <p className="mt-1 text-sm text-red-600">{errors.costs[index]?.category?.message}</p>
                       )}
-                      {watchedCosts[index]?.category && (
-                        <p className="mt-2 text-sm text-gray-600">
-                          {costCategories.find(c => c.value === watchedCosts[index].category)?.description}
-                        </p>
-                      )}
+                                             {watchedCosts[index]?.category && (
+                         <p className="mt-2 text-sm text-gray-600">
+                           {getCostCategories(costTypes).find((c: any) => c.value === watchedCosts[index].category)?.description}
+                         </p>
+                       )}
                     </div>
 
                     {/* Monto */}

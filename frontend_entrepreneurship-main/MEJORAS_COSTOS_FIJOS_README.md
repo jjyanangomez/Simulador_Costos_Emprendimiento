@@ -11,6 +11,7 @@ Se han implementado mejoras significativas en la página de costos fijos para pr
 #### **Antes:**
 - Solo mostraba total mensual, anual y número de costos
 - Grid de 3 columnas
+- Siempre mostraba al menos 1 costo por defecto
 
 #### **Después:**
 - Grid de 4 columnas incluyendo frecuencias de pago

@@ -21,6 +21,7 @@ import { useCategorias } from '../hooks/useCategorias';
 import { CategoriaSelector } from '../components/CategoriaSelector';
 import { LocalStorageService } from '../../../../shared/services/localStorage.service';
 import type { CostosFijosData } from '../../../../shared/services/localStorage.service';
+import { AiAnalysisBackendService } from '../../../../shared/services/aiAnalysisBackend.service';
 
 // Esquema de validación para costos fijos
 const fixedCostSchema = z.object({
@@ -94,12 +95,12 @@ export function FixedCostsPage() {
   // Hook para cargar categorías desde el backend
   const { categorias, loading: categoriasLoading, error: categoriasError } = useCategorias();
 
-     const {
-     control,
-     handleSubmit,
-     watch,
-     formState: { errors, isValid },
-   } = useForm<FixedCostForm>({
+  const {
+    control,
+    handleSubmit,
+    watch,
+    formState: { errors, isValid },
+  } = useForm<FixedCostForm>({
      resolver: zodResolver(fixedCostSchema),
      defaultValues: {
        costs: [], // Lista vacía - el usuario agregará costos según necesite
@@ -260,27 +261,54 @@ export function FixedCostsPage() {
         
         console.log('✅ [FIXED_COSTS] Datos del negocio combinados y mostrados en consola exitosamente');
         
-      } catch (importError) {
-        console.warn('⚠️ [FIXED_COSTS] No se pudo importar la utilidad de combinación:', importError);
-        console.log('📊 [FIXED_COSTS] Mostrando datos básicos combinados:');
+        // 🤖 ANÁLISIS DE IA DEL BACKEND
+        console.log('🤖 [FIXED_COSTS] ===== INICIANDO ANÁLISIS DE IA DEL BACKEND =====');
         
-        // Fallback: mostrar datos básicos combinados
-        const basicCombinedData = {
-          negocio: {
-            nombre: 'No disponible (verificar businessNameStorage)',
-            fechaCombinacion: new Date().toISOString()
-          },
-          costosFijos: dataToSave,
-          metadata: {
-            tipo: 'Combinación básica',
-            timestamp: Date.now(),
-            version: '1.0.0'
-          }
-        };
+        try {
+          // Ejecutar análisis completo con IA del backend
+          const aiAnalysisResult = await AiAnalysisBackendService.executeCompleteAnalysis(completeBusinessData);
+          
+          if (aiAnalysisResult.success) {
+            console.log('✅ [FIXED_COSTS] Análisis de IA del backend completado exitosamente');
+            console.log('📊 [FIXED_COSTS] RESPUESTA DE LA IA:');
+            console.log(aiAnalysisResult.respuesta);
+            
+            // Mostrar toast de éxito del análisis de IA
+            toast.success('¡Análisis de IA completado! Revisa la consola para ver el diagnóstico financiero.');
+            
+          } else {
+          console.warn('⚠️ [FIXED_COSTS] Análisis de IA del backend falló:', aiAnalysisResult.error);
+          toast.error('Análisis de IA falló, pero los costos se guardaron correctamente');
+        }
         
-        console.log('📊 [FIXED_COSTS] DATOS BÁSICOS COMBINADOS:');
-        console.log(JSON.stringify(basicCombinedData, null, 2));
+      } catch (aiError) {
+        console.error('❌ [FIXED_COSTS] Error en análisis de IA del backend:', aiError);
+        toast.error('Error en análisis de IA, pero los costos se guardaron correctamente');
       }
+      
+      console.log('🤖 [FIXED_COSTS] ===== FIN DEL ANÁLISIS DE IA DEL BACKEND =====');
+      
+    } catch (importError) {
+      console.warn('⚠️ [FIXED_COSTS] No se pudo importar la utilidad de combinación:', importError);
+      console.log('📊 [FIXED_COSTS] Mostrando datos básicos combinados:');
+      
+      // Fallback: mostrar datos básicos combinados
+      const basicCombinedData = {
+        negocio: {
+          nombre: 'No disponible (verificar businessNameStorage)',
+          fechaCombinacion: new Date().toISOString()
+        },
+        costosFijos: dataToSave,
+        metadata: {
+          tipo: 'Combinación básica',
+          timestamp: Date.now(),
+          version: '1.0.0'
+        }
+      };
+      
+      console.log('📊 [FIXED_COSTS] DATOS BÁSICOS COMBINADOS:');
+      console.log(JSON.stringify(basicCombinedData, null, 2));
+    }
       
       toast.success('¡Costos fijos guardados exitosamente!');
       

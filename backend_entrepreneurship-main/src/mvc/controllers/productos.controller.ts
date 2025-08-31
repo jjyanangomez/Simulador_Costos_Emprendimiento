@@ -201,6 +201,22 @@ export class RecetasController {
     }
   }
 
+  @Get('all')
+  @ApiOperation({ summary: 'Obtener todas las recetas disponibles' })
+  @ApiResponse({ status: 200, description: 'Lista de todas las recetas obtenida' })
+  async findAllRecetas() {
+    try {
+      const result = await this.productosService.findAllRecetas();
+      return result;
+    } catch (error) {
+      console.error('💥 [BACKEND] Error al obtener todas las recetas:', error);
+      throw new HttpException(
+        'Error al obtener todas las recetas',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Obtener una receta por ID' })
   @ApiParam({ name: 'id', description: 'ID de la receta', type: Number })

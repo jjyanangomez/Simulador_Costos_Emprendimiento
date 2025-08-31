@@ -4,6 +4,7 @@ import {
   Building2, 
   Calculator, 
   Package, 
+  DollarSign,
   TrendingUp, 
   BarChart3, 
   ArrowRight,
@@ -35,6 +36,14 @@ const steps = [
     description: 'Define tus productos principales y sus costos variables',
     icon: Package,
     path: '/variable-costs',
+    status: 'pending' as const,
+  },
+  {
+    id: 'precio-venta',
+    title: 'Precio de Venta',
+    description: 'Analiza costos, precios sugeridos y rentabilidad de productos',
+    icon: DollarSign,
+    path: '/precio-venta',
     status: 'pending' as const,
   },
   {
@@ -100,7 +109,7 @@ export function DashboardPage() {
             <h2 className="text-2xl font-semibold text-gray-900">Progreso de la Simulación</h2>
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span className="text-sm text-gray-600">0 de 5 completados</span>
+              <span className="text-sm text-gray-600">0 de 6 completados</span>
             </div>
           </div>
           

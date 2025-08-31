@@ -134,6 +134,7 @@ export function FixedCostsPage() {
   const [negocioId, setNegocioId] = useState<number>(16); // Usar el negocio que creamos
   const [costTypes, setCostTypes] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showResultsModal, setShowResultsModal] = useState(false);
 
   const {
     control,
@@ -588,10 +589,13 @@ export function FixedCostsPage() {
                         name={`costs.${index}.category`}
                         control={control}
                         render={({ field }) => (
-                          <CategoriaSelector
-                            value={field.value || ''}
-                            onChange={(value) => {
-                              field.onChange(value);
+                          <select
+                            {...field}
+                            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                              errors.costs?.[index]?.category ? 'border-red-500' : 'border-gray-300'
+                            }`}
+                            onChange={(e) => {
+                              field.onChange(e);
                               validateCost(index);
                             }}
                           >
@@ -786,14 +790,14 @@ export function FixedCostsPage() {
               <span>Paso Anterior</span>
             </button>
             
-                                      <button
-               type="button"
-               onClick={() => setShowResultsModal(true)}
-               className="px-8 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2"
-             >
-               <BarChart3 className="w-4 h-4" />
-               <span>Ver Resultados</span>
-             </button>
+            <button
+              type="button"
+              onClick={() => setShowResultsModal(true)}
+              className="px-8 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2"
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span>Ver Resultados</span>
+            </button>
           </div>
         </form>
       </div>

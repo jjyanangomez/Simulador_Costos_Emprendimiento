@@ -20,7 +20,8 @@ import { AnalisisIAController } from './controllers/analysis_ai.controller';
 import { AiController } from './controllers/ai.controller';
 import { CostosFijosController } from './controllers/costos-fijos.controller';
 import { CostosVariablesController } from './controllers/costos-variables.controller';
-import { ProductosController, RecetasController } from './controllers/productos.controller';
+import { ProductosController } from './controllers/productos.controller';
+import { RecetasController } from './controllers/productos.controller';
 import { AnalisisController } from './controllers/analisis.controller';
 import { ProductoPrecioVentaController } from '../simulator/bussiness/controllers/producto-precio-venta.controller';
 

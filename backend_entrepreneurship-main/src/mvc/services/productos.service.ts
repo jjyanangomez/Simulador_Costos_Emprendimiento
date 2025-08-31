@@ -331,6 +331,7 @@ export class ProductosService {
           personal_requerido: createRecetaDto.personalRequerido,
           costos_adicionales: createRecetaDto.costosAdicionales,
           precio_venta: createRecetaDto.precioVenta,
+          costo_receta: createRecetaDto.costosAdicionales || 0, // Usar costos_adicionales como costo_receta por defecto
         },
         include: {
           Productos: {
@@ -454,7 +455,10 @@ export class ProductosService {
       if (updateRecetaDto.nombreReceta !== undefined) updateData.nombre_receta = updateRecetaDto.nombreReceta;
       if (updateRecetaDto.tiempoPreparacion !== undefined) updateData.tiempo_preparacion = updateRecetaDto.tiempoPreparacion;
       if (updateRecetaDto.personalRequerido !== undefined) updateData.personal_requerido = updateRecetaDto.personalRequerido;
-      if (updateRecetaDto.costosAdicionales !== undefined) updateData.costos_adicionales = updateRecetaDto.costosAdicionales;
+      if (updateRecetaDto.costosAdicionales !== undefined) {
+        updateData.costos_adicionales = updateRecetaDto.costosAdicionales;
+        updateData.costo_receta = updateRecetaDto.costosAdicionales; // Actualizar también costo_receta
+      }
       if (updateRecetaDto.precioVenta !== undefined) updateData.precio_venta = updateRecetaDto.precioVenta;
 
       // Actualizar la receta

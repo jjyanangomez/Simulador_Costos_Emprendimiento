@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MainLayout } from '../../../../shared/infrastructure/components/MainLayout';
 import { AddProductModal } from './components/AddProductModal';
@@ -13,10 +13,13 @@ import {
   ArrowLeft,
   ChefHat,
   ShoppingBag,
-  Edit
+  Edit,
+  Download,
+  Upload
 } from 'lucide-react';
 
 import toast from 'react-hot-toast';
+import { BusinessDataLocalStorageService } from '../../../../shared/infrastructure/services/businessDataLocalStorage.service';
 
 import type { Ingredient, Product, AdditionalCost } from '../../domain/types';
 
@@ -27,11 +30,34 @@ export function VariableCostsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [additionalCosts, setAdditionalCosts] = useState<AdditionalCost[]>([]);
-  const [businessType, setBusinessType] = useState('restaurante'); // Por defecto, se puede obtener del contexto
+  const [businessType, setBusinessType] = useState('restaurante');
   const [showSummary, setShowSummary] = useState(false);
   const [aiValidations, setAiValidations] = useState<Record<number, any[]>>({});
-  // ID del negocio (en un caso real esto vendría del contexto o props)
-  const negocioId = 1; // Temporal - debería venir del contexto de autenticación
+  const [hasLocalData, setHasLocalData] = useState(false);
+  const negocioId = 1;
+
+  // Cargar datos del localStorage al montar el componente
+  useEffect(() => {
+    loadFromLocalStorage();
+  }, []);
+
+  const loadFromLocalStorage = () => {
+    const savedProducts = BusinessDataLocalStorageService.getVariableCostsProducts();
+    const savedAdditionalCosts = BusinessDataLocalStorageService.getVariableCostsAdditionalCosts();
+    const savedBusinessType = BusinessDataLocalStorageService.getVariableCostsBusinessType();
+    const lastUpdated = BusinessDataLocalStorageService.getVariableCostsLastUpdated();
+
+    if (savedProducts.length > 0 || savedAdditionalCosts.length > 0) {
+      setProducts(savedProducts);
+      setAdditionalCosts(savedAdditionalCosts);
+      setBusinessType(savedBusinessType);
+      setHasLocalData(true);
+      
+      if (lastUpdated) {
+        toast.success(`Datos cargados (última actualización: ${new Date(lastUpdated).toLocaleString()})`);
+      }
+    }
+  };
 
   // Función helper para calcular el costo de un producto
   const calculateProductCost = (product: Product): number => {
@@ -49,12 +75,28 @@ export function VariableCostsPage() {
   const addProduct = (product: Product) => {
     if (editingProduct) {
       // Actualizar producto existente
-      setProducts(products.map(p => p.id === product.id ? product : p));
-      toast.success(`Producto "${product.name}" actualizado exitosamente`);
+      const updatedProducts = products.map(p => p.id === product.id ? product : p);
+      setProducts(updatedProducts);
+      BusinessDataLocalStorageService.saveVariableCostsProducts(updatedProducts);
+      // Guardar automáticamente todos los datos
+      BusinessDataLocalStorageService.saveVariableCostsData({
+        products: updatedProducts,
+        additionalCosts,
+        businessType
+      });
+      toast.success(`Producto "${product.name}" actualizado y guardado automáticamente`);
     } else {
       // Agregar nuevo producto
-      setProducts([...products, product]);
-      toast.success(`Producto "${product.name}" agregado exitosamente`);
+      const newProducts = [...products, product];
+      setProducts(newProducts);
+      BusinessDataLocalStorageService.saveVariableCostsProducts(newProducts);
+      // Guardar automáticamente todos los datos
+      BusinessDataLocalStorageService.saveVariableCostsData({
+        products: newProducts,
+        additionalCosts,
+        businessType
+      });
+      toast.success(`Producto "${product.name}" agregado y guardado automáticamente`);
     }
     setEditingProduct(null);
   };
@@ -65,12 +107,28 @@ export function VariableCostsPage() {
   };
 
   const removeProduct = (productId: string) => {
-    setProducts(products.filter(p => p.id !== productId));
-    toast.success('Producto eliminado');
+    const updatedProducts = products.filter(p => p.id !== productId);
+    setProducts(updatedProducts);
+    BusinessDataLocalStorageService.saveVariableCostsProducts(updatedProducts);
+    // Guardar automáticamente todos los datos
+    BusinessDataLocalStorageService.saveVariableCostsData({
+      products: updatedProducts,
+      additionalCosts,
+      businessType
+    });
+    toast.success('Producto eliminado y guardado automáticamente');
   };
 
   const handleAdditionalCostsChange = (costs: AdditionalCost[]) => {
     setAdditionalCosts(costs);
+    BusinessDataLocalStorageService.saveVariableCostsAdditionalCosts(costs);
+    // Guardar automáticamente todos los datos
+    BusinessDataLocalStorageService.saveVariableCostsData({
+      products,
+      additionalCosts: costs,
+      businessType
+    });
+    toast.success('Costos adicionales guardados automáticamente');
   };
 
   const handleSave = async () => {
@@ -82,20 +140,32 @@ export function VariableCostsPage() {
     setIsSubmitting(true);
     
     try {
-      // Aquí iría la lógica para guardar en el backend
-      console.log('Productos:', products);
-      console.log('Costos adicionales:', additionalCosts);
+      // Guardar todos los datos en localStorage
+      BusinessDataLocalStorageService.saveVariableCostsData({
+        products,
+        additionalCosts,
+        businessType
+      });
       
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       setShowSummary(true);
-      toast.success('¡Datos guardados exitosamente!');
+               toast.success('¡Datos guardados exitosamente!');
     } catch (error) {
       toast.error('Error al guardar los datos');
       console.error('Error:', error);
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const clearLocalData = () => {
+    BusinessDataLocalStorageService.clearVariableCostsData();
+    setProducts([]);
+    setAdditionalCosts([]);
+    setBusinessType('restaurante');
+    setHasLocalData(false);
+         toast.success('Datos eliminados');
   };
 
   const handleContinue = () => {
@@ -293,6 +363,7 @@ export function VariableCostsPage() {
         {/* Sección 2: Costos Variables Adicionales */}
         <AdditionalVariableCosts 
           businessType={businessType}
+          initialCosts={additionalCosts}
           onCostsChange={handleAdditionalCostsChange}
         />
 
@@ -300,14 +371,38 @@ export function VariableCostsPage() {
 
         {/* Botones de acción */}
         <div className="flex justify-between items-center pt-6">
-          <button
-            type="button"
-            onClick={() => navigate('/fixed-costs')}
-            className="px-6 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center space-x-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Paso Anterior</span>
-          </button>
+          <div className="flex items-center space-x-4">
+            <button
+              type="button"
+              onClick={() => navigate('/fixed-costs')}
+              className="px-6 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center space-x-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Paso Anterior</span>
+            </button>
+
+            {/* Botones de localStorage */}
+            {hasLocalData && (
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={loadFromLocalStorage}
+                  className="px-4 py-2 text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors flex items-center space-x-2"
+                                     title="Recargar datos"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>Recargar</span>
+                </button>
+                <button
+                  onClick={clearLocalData}
+                  className="px-4 py-2 text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors flex items-center space-x-2"
+                                     title="Eliminar datos"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Limpiar</span>
+                </button>
+              </div>
+            )}
+          </div>
           
           <button
             onClick={handleSave}
@@ -322,7 +417,7 @@ export function VariableCostsPage() {
             ) : (
               <>
                 <Save className="w-4 h-4" />
-                <span>Guardar y Ver Resumen</span>
+                                 <span>Guardar</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}

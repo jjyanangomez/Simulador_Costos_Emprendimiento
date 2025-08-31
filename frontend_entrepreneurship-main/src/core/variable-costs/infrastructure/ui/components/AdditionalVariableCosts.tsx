@@ -4,6 +4,7 @@ import type { AdditionalCost } from '../../../domain/types';
 
 interface AdditionalVariableCostsProps {
   businessType: string;
+  initialCosts?: AdditionalCost[];
   onCostsChange: (costs: AdditionalCost[]) => void;
 }
 
@@ -74,8 +75,8 @@ const getCostCategories = (businessType: string): string[] => {
   ];
 };
 
-export function AdditionalVariableCosts({ businessType, onCostsChange }: AdditionalVariableCostsProps) {
-  const [costs, setCosts] = useState<AdditionalCost[]>([]);
+export function AdditionalVariableCosts({ businessType, initialCosts = [], onCostsChange }: AdditionalVariableCostsProps) {
+  const [costs, setCosts] = useState<AdditionalCost[]>(initialCosts);
   const [categories, setCategories] = useState<string[]>([]);
   const [isGeneratingCategories, setIsGeneratingCategories] = useState(false);
 
@@ -90,6 +91,13 @@ export function AdditionalVariableCosts({ businessType, onCostsChange }: Additio
       }, 1000);
     }
   }, [businessType]);
+
+  // Cargar costos iniciales cuando cambien
+  useEffect(() => {
+    if (initialCosts && initialCosts.length > 0) {
+      setCosts(initialCosts);
+    }
+  }, [initialCosts]);
 
   const addCost = () => {
     const newCost: AdditionalCost = {

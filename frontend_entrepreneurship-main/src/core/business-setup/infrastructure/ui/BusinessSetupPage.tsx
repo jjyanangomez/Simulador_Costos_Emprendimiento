@@ -91,6 +91,7 @@ export function BusinessSetupPage() {
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showAnalysisModal, setShowAnalysisModal] = useState(false);
+  const [hasLocalData, setHasLocalData] = useState(false);
   
   // Función helper para formatear números de manera segura
   const formatCurrency = (value: any): string => {
@@ -98,56 +99,27 @@ export function BusinessSetupPage() {
     return isNaN(numValue) ? '0.00' : numValue.toFixed(2);
   };
   
-  // Función para guardar negocio y generar análisis de IA
-  const saveBusinessAndGenerateAnalysis = async (data: BusinessSetupForm) => {
+  // Función para generar análisis de IA (SIN BACKEND)
+  const generateAnalysisWithLocalStorage = async (data: BusinessSetupForm) => {
     setIsSubmitting(true);
     
     try {
-      console.log('🚀 Guardando negocio en la base de datos...');
+      console.log('🤖 Iniciando análisis de IA con localStorage...');
       
-      // Importar el servicio
-      const { BusinessBackendService } = await import('../../services/BusinessBackendService');
+      // Simular análisis de IA con delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Preparar datos del negocio para el backend
-      const businessData = {
-        usuarioId: 4, // Usuario que creamos en el backend
-        nombreNegocio: data.businessName,
-        ubicacionExacta: data.exactLocation || 'Ubicación no especificada',
-        idTamano: 1, // Tamaño "Pequeño" que ya existe
-        sectorId: 1, // Sector "Restaurantes y Cafeterías" que ya existe
-        aforoPersonas: data.capacity,
-        inversionInicial: data.investmentItems?.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) || 0,
-        capitalPropio: data.financingType === 'personal' ? data.investmentItems?.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) || 0 : data.ownCapital || 0,
-        capitalPrestamo: data.financingType === 'prestamo' ? data.investmentItems?.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) || 0 : data.loanCapital || 0,
-        tasaInteres: data.interestRate || 0
-      };
-      
-      // Preparar items de inversión para el backend
-      const investmentItems = data.investmentItems?.map(item => ({
-        negocio_id: 0, // Se asignará cuando se cree el negocio
-        nombre: item.description || 'Item sin nombre',
-        descripcion: item.description,
-        precio: Number(item.amount) || 0,
-        cantidad: 1,
-        categoria: 'General',
-        prioridad: 'media',
-        fecha_compra_estimada: null // Usar null en lugar de cadena vacía
-      })) || [];
-      
-      // Crear negocio completo en el backend
-      const result = await BusinessBackendService.createCompleteBusiness(businessData, investmentItems);
-      
-      console.log('✅ Negocio guardado exitosamente en el backend:', result);
-      
-      // Ahora que está guardado, generar el análisis de IA
+      // Generar el análisis de IA
       await generateAIAnalysis(data);
       
-      // Mostrar el modal después de completar todo
+      // Mostrar el modal después de completar el análisis
       setShowAnalysisModal(true);
       
+      toast.success('Análisis de IA completado exitosamente');
+      
     } catch (error) {
-      console.error('❌ Error al guardar en el backend:', error);
-      toast.error('Error al guardar la configuración en el backend');
+      console.error('❌ Error en análisis de IA:', error);
+      toast.error('Error al generar el análisis de IA');
     } finally {
       setIsSubmitting(false);
     }
@@ -158,11 +130,13 @@ export function BusinessSetupPage() {
     setIsAnalyzing(true);
     
     try {
+      console.log('🤖 Iniciando análisis de IA...');
+      
       // Simular análisis de IA con delay
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // ===== ANÁLISIS INTELIGENTE REAL BASADO EN DATOS =====
-      let score = 40; // Puntuación base más estricta
+      // ===== ANÁLISIS SIMPLIFICADO Y FUNCIONAL =====
+      let score = 50; // Puntuación base
       const analysis: AIAnalysis = {
         isViable: false,
         score: 0,
@@ -173,371 +147,172 @@ export function BusinessSetupPage() {
         riskLevel: 'high'
       };
 
-      // ===== 1. ANÁLISIS DEL NOMBRE DEL NEGOCIO (5 puntos) =====
-      if (data.businessName.length >= 5 && data.businessName.length <= 20) {
-        score += 5;
-        analysis.businessInsights.push('Nombre del negocio tiene una longitud apropiada.');
-      } else if (data.businessName.length < 5) {
-        analysis.warnings.push('El nombre del negocio es muy corto. Considera un nombre más descriptivo y memorable.');
+      // ===== 1. ANÁLISIS DEL NOMBRE DEL NEGOCIO (10 puntos) =====
+      if (data.businessName.length >= 5 && data.businessName.length <= 25) {
+        score += 10;
+        analysis.businessInsights.push('✅ Nombre del negocio tiene una longitud apropiada.');
       } else {
-        analysis.warnings.push('El nombre del negocio es muy largo. Considera uno más corto y fácil de recordar.');
+        analysis.warnings.push('⚠️ Considera un nombre más descriptivo y memorable.');
       }
 
-      // ===== 2. ANÁLISIS DE UBICACIÓN (15 puntos) =====
+      // ===== 2. ANÁLISIS DE UBICACIÓN (20 puntos) =====
       const primeLocations = ['Centro Histórico', 'La Mariscal', 'Cumbayá', 'La Floresta'];
       const goodLocations = ['Guápulo', 'Bellavista', 'Tumbaco', 'Valle de los Chillos'];
       
       if (primeLocations.includes(data.sector)) {
-        score += 15;
-        analysis.businessInsights.push(`Excelente ubicación en ${data.sector}. Zona de alto tráfico y poder adquisitivo.`);
+        score += 20;
+        analysis.businessInsights.push(`✅ Excelente ubicación en ${data.sector}. Zona de alto tráfico.`);
       } else if (goodLocations.includes(data.sector)) {
-        score += 10;
-        analysis.businessInsights.push(`Buena ubicación en ${data.sector}. Zona en crecimiento con potencial.`);
+        score += 15;
+        analysis.businessInsights.push(`✅ Buena ubicación en ${data.sector}. Zona con potencial.`);
       } else {
-        score += 5;
-        analysis.warnings.push(`La ubicación en ${data.sector} puede tener menor tráfico. Considera estrategias de marketing local.`);
+        score += 10;
+        analysis.businessInsights.push(`✅ Ubicación en ${data.sector}. Considera estrategias de marketing local.`);
       }
 
-      // ===== 3. ANÁLISIS DE CATEGORÍA DE NEGOCIO (10 puntos) =====
+      // ===== 3. ANÁLISIS DE CATEGORÍA DE NEGOCIO (15 puntos) =====
       const highDemandCategories = ['cafeteria', 'panaderia', 'fast-food'];
       const mediumDemandCategories = ['restaurante', 'pizzeria', 'heladeria'];
       
       if (highDemandCategories.includes(data.businessCategory)) {
-        score += 10;
-        analysis.businessInsights.push(`${data.businessCategory} tiene alta demanda y frecuencia de consumo.`);
+        score += 15;
+        analysis.businessInsights.push(`✅ ${data.businessCategory} tiene alta demanda y frecuencia de consumo.`);
       } else if (mediumDemandCategories.includes(data.businessCategory)) {
-        score += 7;
-        analysis.businessInsights.push(`${data.businessCategory} tiene demanda estable en el mercado.`);
-      } else {
-        score += 5;
-        analysis.warnings.push(`${data.businessCategory} puede requerir estrategias específicas de marketing.`);
-      }
-
-      // ===== 4. ANÁLISIS DE CAPACIDAD VS TAMAÑO (10 puntos) =====
-      const sizeCapacityMapping = {
-        'micro': { min: 5, max: 25, optimal: 15 },
-        'pequena': { min: 20, max: 80, optimal: 50 },
-        'mediana': { min: 60, max: 150, optimal: 100 },
-        'grande': { min: 120, max: 300, optimal: 200 }
-      };
-      
-      const sizeConfig = sizeCapacityMapping[data.businessSize as keyof typeof sizeCapacityMapping];
-      if (data.capacity >= sizeConfig.min && data.capacity <= sizeConfig.max) {
-        if (Math.abs(data.capacity - sizeConfig.optimal) <= 10) {
-          score += 10;
-          analysis.businessInsights.push(`Capacidad óptima de ${data.capacity} personas para una ${data.businessSize}.`);
-        } else {
-          score += 7;
-          analysis.businessInsights.push(`Capacidad de ${data.capacity} personas es adecuada para una ${data.businessSize}.`);
-        }
-      } else {
-        analysis.warnings.push(`Capacidad de ${data.capacity} no es óptima para una ${data.businessSize}. Considera ajustar.`);
-      }
-
-      // ===== 5. ANÁLISIS FINANCIERO (25 puntos) =====
-      const totalInvestment = data.investmentItems.reduce((sum, item) => sum + item.amount, 0);
-      const investmentPerPerson = totalInvestment / data.capacity;
-      
-      // Análisis de inversión por persona
-      if (investmentPerPerson >= 800 && investmentPerPerson <= 2000) {
-        score += 10;
-        analysis.businessInsights.push(`Inversión por persona de $${investmentPerPerson.toFixed(0)} es equilibrada y realista.`);
-      } else if (investmentPerPerson < 500) {
-        analysis.warnings.push(`Inversión por persona de $${investmentPerPerson.toFixed(0)} parece baja. Verifica que cubra equipamiento necesario.`);
-      } else if (investmentPerPerson > 3000) {
-        score += 5;
-        analysis.warnings.push(`Inversión por persona de $${investmentPerPerson.toFixed(0)} es muy alta. Considera optimizar costos.`);
-      } else {
-        score += 7;
-      }
-
-      // Análisis de financiamiento
-      if (data.financingType === 'mixto') {
-        score += 8;
-        analysis.businessInsights.push('Financiamiento mixto distribuye riesgos eficientemente.');
-        
-        const ownPercentage = (data.ownCapital / totalInvestment) * 100;
-        if (ownPercentage >= 30 && ownPercentage <= 70) {
-          score += 5;
-          analysis.businessInsights.push(`Proporción de capital propio (${ownPercentage.toFixed(0)}%) es equilibrada.`);
-        } else if (ownPercentage < 30) {
-          analysis.warnings.push('Considera aumentar tu capital propio para reducir dependencia de préstamos.');
-        }
-      } else if (data.financingType === 'personal') {
         score += 12;
-        analysis.businessInsights.push('Financiamiento personal elimina riesgos de deuda y intereses.');
+        analysis.businessInsights.push(`✅ ${data.businessCategory} tiene demanda estable en el mercado.`);
       } else {
-        score += 3;
-        analysis.warnings.push('Financiamiento completamente externo aumenta el riesgo financiero.');
-      }
-
-      // Análisis de tasa de interés
-      if (data.financingType !== 'personal' && data.interestRate > 0) {
-        if (data.interestRate <= 10) {
-          score += 2;
-          analysis.businessInsights.push(`Tasa de interés del ${data.interestRate}% es competitiva.`);
-        } else if (data.interestRate <= 15) {
-          analysis.warnings.push(`Tasa de interés del ${data.interestRate}% es moderada. Considera negociar mejores términos.`);
-        } else {
-          analysis.warnings.push(`Tasa de interés del ${data.interestRate}% es alta. Busca alternativas de financiamiento.`);
-          score -= 5;
-        }
-      }
-
-      // ===== 6. ANÁLISIS DE DIVERSIFICACIÓN DE INVERSIÓN (10 puntos) =====
-      const investmentCategories = data.investmentItems.length;
-      
-      if (investmentCategories >= 5) {
         score += 10;
-        analysis.businessInsights.push(`Excelente diversificación con ${investmentCategories} categorías de inversión.`);
-      } else if (investmentCategories >= 3) {
-        score += 7;
-        analysis.businessInsights.push(`Buena diversificación con ${investmentCategories} categorías de inversión.`);
+        analysis.businessInsights.push(`✅ ${data.businessCategory} puede requerir estrategias específicas de marketing.`);
+      }
+
+      // ===== 4. ANÁLISIS DE CAPACIDAD (15 puntos) =====
+      if (data.capacity >= 10 && data.capacity <= 200) {
+        score += 15;
+        analysis.businessInsights.push(`✅ Capacidad de ${data.capacity} personas es adecuada para el negocio.`);
       } else {
-        analysis.warnings.push(`Solo ${investmentCategories} categorías de inversión. Considera diversificar más.`);
+        score += 10;
+        analysis.warnings.push(`⚠️ Considera ajustar la capacidad de ${data.capacity} personas.`);
       }
 
-      // ===== 7. ANÁLISIS DE COHERENCIA DE NEGOCIO (10 puntos) =====
-      let coherenceScore = 0;
+      // ===== 5. ANÁLISIS FINANCIERO (20 puntos) =====
+      const totalInvestment = data.investmentItems.reduce((sum, item) => sum + item.amount, 0);
       
-      // Coherencia categoría-ubicación
-      if ((data.businessCategory === 'restaurante' || data.businessCategory === 'cafeteria') && 
-          primeLocations.includes(data.sector)) {
-        coherenceScore += 5;
-      }
-      
-      // Coherencia capacidad-categoría
-      if ((data.businessCategory === 'fast-food' && data.capacity <= 40) ||
-          (data.businessCategory === 'restaurante' && data.capacity >= 30) ||
-          (data.businessCategory === 'cafeteria' && data.capacity <= 50)) {
-        coherenceScore += 5;
-      }
-      
-      score += coherenceScore;
-      if (coherenceScore >= 8) {
-        analysis.businessInsights.push('Excelente coherencia entre categoría, ubicación y capacidad del negocio.');
+      // Análisis de financiamiento
+      if (data.financingType === 'personal') {
+        score += 20;
+        analysis.businessInsights.push('✅ Financiamiento personal elimina riesgos de deuda.');
+      } else if (data.financingType === 'mixto') {
+        score += 15;
+        analysis.businessInsights.push('✅ Financiamiento mixto distribuye riesgos eficientemente.');
+      } else {
+        score += 10;
+        analysis.warnings.push('⚠️ Financiamiento externo aumenta el riesgo financiero.');
       }
 
-      // ===== 8. BONIFICACIONES (5 puntos) =====
-      // Bonificación por nombre creativo
-      if (data.businessName.toLowerCase().includes(data.businessCategory) || 
-          data.businessName.toLowerCase().includes('café') ||
-          data.businessName.toLowerCase().includes('resto')) {
-        score += 3;
-        analysis.businessInsights.push('Nombre del negocio refleja claramente la actividad.');
+      // Análisis de inversión
+      if (totalInvestment >= 5000 && totalInvestment <= 100000) {
+        score += 10;
+        analysis.businessInsights.push(`✅ Inversión de $${totalInvestment.toLocaleString()} es realista.`);
+      } else {
+        score += 5;
+        analysis.warnings.push(`⚠️ Considera ajustar la inversión de $${totalInvestment.toLocaleString()}.`);
       }
 
-      // Bonificación por tamaño realista
-      if ((data.businessSize === 'micro' && totalInvestment <= 30000) ||
-          (data.businessSize === 'pequena' && totalInvestment <= 100000)) {
-        score += 2;
-        analysis.businessInsights.push('Inversión realista para el tamaño de empresa seleccionado.');
-      }
+      // ===== 6. ANÁLISIS DETALLADO DE ITEMS DE INVERSIÓN (20 puntos) =====
+      const investmentAnalysis = analyzeInvestmentItems(data.investmentItems, data.businessCategory, data.businessSize, totalInvestment);
+      
+      // Agregar insights del análisis de inversión
+      analysis.businessInsights.push(...investmentAnalysis.insights);
+      analysis.warnings.push(...investmentAnalysis.warnings);
+      analysis.recommendations.push(...investmentAnalysis.recommendations);
+      
+      // Puntuación basada en la completitud de la inversión
+      score += investmentAnalysis.score;
 
       // ===== ASIGNAR PUNTUACIÓN FINAL =====
       analysis.score = Math.min(Math.max(score, 0), 100);
 
       // ===== DETERMINAR SALUD FINANCIERA =====
-      const debtToInvestmentRatio = data.financingType === 'personal' ? 0 : 
-                                   (data.loanCapital || 0) / totalInvestment;
-      
-      if (debtToInvestmentRatio <= 0.4 && analysis.score >= 80) {
+      if (analysis.score >= 80) {
         analysis.financialHealth = 'good';
-      } else if (debtToInvestmentRatio <= 0.7 && analysis.score >= 60) {
+      } else if (analysis.score >= 60) {
         analysis.financialHealth = 'fair';
       } else {
         analysis.financialHealth = 'poor';
       }
 
       // ===== DETERMINAR NIVEL DE RIESGO =====
-      if (analysis.score >= 85 && analysis.financialHealth === 'good') {
+      if (analysis.score >= 80) {
         analysis.riskLevel = 'low';
-      } else if (analysis.score >= 70 && analysis.financialHealth !== 'poor') {
+      } else if (analysis.score >= 60) {
         analysis.riskLevel = 'medium';
       } else {
         analysis.riskLevel = 'high';
       }
 
-      // ===== DETERMINAR VIABILIDAD (UMBRAL: 75 PUNTOS + RIESGO BAJO) =====
-      // Solo negocios con puntuación ≥75 Y riesgo BAJO son viables
-      if (analysis.score >= 75 && analysis.riskLevel === 'low') {
+      // ===== DETERMINAR VIABILIDAD (UMBRAL: 70 PUNTOS) =====
+      if (analysis.score >= 70) {
         analysis.isViable = true;
-        analysis.businessInsights.push(`¡Excelente! Tu negocio alcanzó ${analysis.score} puntos con riesgo bajo, cumpliendo todos los criterios de viabilidad.`);
+        analysis.businessInsights.push(`🎉 ¡Excelente! Tu negocio alcanzó ${analysis.score} puntos y es viable.`);
       } else {
         analysis.isViable = false;
-        
-        // Mensajes específicos según la razón de no viabilidad
-        if (analysis.score < 75) {
-          analysis.warnings.push(`Tu negocio obtuvo ${analysis.score} puntos. Necesitas ${75 - analysis.score} puntos más para ser viable.`);
-        }
-        
-        if (analysis.riskLevel === 'medium') {
-          analysis.warnings.push('Nivel de riesgo MEDIO: Se requiere reducir el riesgo a BAJO para que el negocio sea viable.');
-        } else if (analysis.riskLevel === 'high') {
-          analysis.warnings.push('Nivel de riesgo ALTO: Es fundamental reducir significativamente el riesgo para la viabilidad.');
-        }
-        
-        // Mensajes adicionales por rango de puntuación
-        if (analysis.score >= 70 && analysis.riskLevel !== 'low') {
-          analysis.warnings.push('Tu puntuación es buena, pero el nivel de riesgo debe reducirse a BAJO.');
-        } else if (analysis.score >= 60) {
-          analysis.warnings.push('Tu negocio tiene potencial, pero necesita mejoras en puntuación y reducción de riesgo.');
-        } else {
-          analysis.warnings.push('Se requieren cambios importantes en tu propuesta de negocio.');
-        }
+        analysis.warnings.push(`⚠️ Tu negocio obtuvo ${analysis.score} puntos. Necesitas ${70 - analysis.score} puntos más para ser viable.`);
       }
 
       // ===== GENERAR RECOMENDACIONES ESPECÍFICAS =====
       if (!analysis.isViable) {
-        analysis.recommendations.push('Revisa los aspectos señalados en las advertencias para mejorar la viabilidad.');
+        analysis.recommendations.push('💡 Revisa los aspectos señalados en las advertencias para mejorar la viabilidad.');
         
-        // Recomendaciones específicas para reducir riesgo
-        if (analysis.riskLevel === 'medium') {
-          analysis.recommendations.push('Para reducir el riesgo a BAJO: mejora la salud financiera aumentando capital propio.');
-          analysis.recommendations.push('Optimiza la inversión por persona y considera ubicaciones de mayor potencial.');
-        } else if (analysis.riskLevel === 'high') {
-          analysis.recommendations.push('Para reducir el riesgo ALTO: restructura completamente el financiamiento.');
-          analysis.recommendations.push('Aumenta significativamente tu capital propio y reduce la dependencia de préstamos.');
-        }
-        
-        // Recomendaciones específicas por problemas detectados
         if (data.financingType === 'prestamo') {
-          analysis.recommendations.push('Cambia a financiamiento mixto o personal para reducir riesgo financiero.');
+          analysis.recommendations.push('💡 Cambia a financiamiento mixto o personal para reducir riesgo financiero.');
         }
         
-        if (investmentPerPerson < 500) {
-          analysis.recommendations.push('Incrementa la inversión en equipamiento esencial para asegurar la calidad del servicio.');
-        }
-        
-        if (!primeLocations.includes(data.sector)) {
-          analysis.recommendations.push('Considera reubicarte en una zona de mayor tráfico o desarrolla una estrategia de marketing sólida.');
-        }
-        
-        if (analysis.financialHealth === 'poor') {
-          analysis.recommendations.push('Mejora la salud financiera reduciendo la proporción de deuda respecto a la inversión total.');
+        if (totalInvestment < 5000) {
+          analysis.recommendations.push('💡 Incrementa la inversión en equipamiento esencial.');
         }
       }
 
-      // Recomendaciones por categoría
-      const categoryRecommendations: Record<string, string[]> = {
-        'restaurante': [
-          'Implementa un sistema de reservas online para optimizar la gestión de mesas.',
-          'Considera opciones de delivery y takeaway para aumentar ingresos.'
-        ],
-        'cafeteria': [
-          'Crea un ambiente acogedor que invite a quedarse y trabajar.',
-          'Implementa un programa de fidelización para clientes regulares.'
-        ],
-        'fast-food': [
-          'Optimiza los tiempos de servicio para maximizar la rotación de clientes.',
-          'Implementa tecnología para pedidos rápidos (apps, kioscos).'
-        ]
-      };
-
-      if (categoryRecommendations[data.businessCategory]) {
-        analysis.recommendations.push(...categoryRecommendations[data.businessCategory]);
-      }
+      // Recomendaciones generales
+      analysis.recommendations.push('💡 Desarrolla una estrategia de marketing sólida.');
+      analysis.recommendations.push('💡 Implementa un sistema de control de costos.');
+      analysis.recommendations.push('💡 Considera opciones de delivery para aumentar ingresos.');
       
       setAiAnalysis(analysis);
-      // Solo mostrar el modal si no estamos en proceso de guardado
-      if (!isSubmitting) {
-        setShowAnalysisModal(true);
-      }
       
-      // ===== IMPRIMIR TODOS LOS DATOS GENERADOS POR LA IA EN CONSOLA =====
-      console.log('\n🤖 ================== ANÁLISIS DE IA GENERADO ==================');
-      console.log('📊 DATOS DEL NEGOCIO:');
-      console.log({
-        'Nombre del Negocio': data.businessName,
-        'Categoría': data.businessCategory,
-        'Sector/Ubicación': data.sector,
-        'Ubicación Exacta': data.exactLocation || 'No especificada',
-        'Tamaño del Negocio': data.businessSize,
-        'Capacidad': `${data.capacity} personas`,
-        'Tipo de Financiamiento': data.financingType,
-        'Capital Propio': `$${data.ownCapital.toLocaleString()}`,
-        'Capital Préstamo': `$${(data.loanCapital || 0).toLocaleString()}`,
-        'Tasa de Interés': `${data.interestRate || 0}%`,
-        'Inversión Total': `$${data.investmentItems.reduce((sum, item) => sum + item.amount, 0).toLocaleString()}`
+      // Mostrar el modal
+      setShowAnalysisModal(true);
+      
+      console.log('🤖 Análisis de IA completado:', {
+        score: analysis.score,
+        isViable: analysis.isViable,
+        riskLevel: analysis.riskLevel
       });
       
-      console.log('\n💰 ITEMS DE INVERSIÓN:');
-      data.investmentItems.forEach((item, index) => {
-        console.log(`${index + 1}. ${item.description}: $${item.amount.toLocaleString()}`);
-      });
-      
-      console.log('\n🎯 RESULTADO DEL ANÁLISIS DE IA:');
-      console.log({
-        '✅ Es Viable': analysis.isViable ? 'SÍ' : 'NO',
-        '📊 Puntuación': `${analysis.score}/100 puntos`,
-        '⚠️ Nivel de Riesgo': analysis.riskLevel.toUpperCase(),
-        '💚 Salud Financiera': analysis.financialHealth.toUpperCase()
-      });
-      
-      console.log('\n🔍 DETALLES DEL ANÁLISIS:');
-      console.log('📈 ASPECTOS POSITIVOS:');
-      if (analysis.businessInsights.length > 0) {
-        analysis.businessInsights.forEach((insight, index) => {
-          console.log(`   ${index + 1}. ✅ ${insight}`);
-        });
-      } else {
-        console.log('   (Ninguno identificado)');
-      }
-      
-      console.log('\n⚠️ ADVERTENCIAS:');
-      if (analysis.warnings.length > 0) {
-        analysis.warnings.forEach((warning, index) => {
-          console.log(`   ${index + 1}. ⚠️ ${warning}`);
-        });
-      } else {
-        console.log('   (Ninguna identificada)');
-      }
-      
-      console.log('\n💡 RECOMENDACIONES:');
-      if (analysis.recommendations.length > 0) {
-        analysis.recommendations.forEach((rec, index) => {
-          console.log(`   ${index + 1}. 💡 ${rec}`);
-        });
-      } else {
-        console.log('   (Ninguna generada)');
-      }
-      
-      console.log('\n🏆 CRITERIOS DE VIABILIDAD:');
-      console.log({
-        'Puntuación Mínima': '75 puntos',
-        'Riesgo Máximo': 'BAJO (MEDIO y ALTO = NO VIABLE)',
-        'Puntuación Actual': `${analysis.score} puntos`,
-        'Riesgo Actual': analysis.riskLevel.toUpperCase(),
-        'Cumple Criterios': analysis.isViable ? 'SÍ ✅' : 'NO ❌'
-      });
-      
-      console.log('\n📋 RESUMEN EJECUTIVO:');
-      const totalInvestmentAmount = data.investmentItems.reduce((sum, item) => sum + item.amount, 0);
-      const debtRatio = ((data.loanCapital || 0) / totalInvestmentAmount * 100).toFixed(1);
-      const investmentPerPersonAmount = (totalInvestmentAmount / data.capacity).toFixed(0);
-      
-      console.log({
-        'Negocio': `${data.businessName} (${data.businessCategory})`,
-        'Ubicación': data.sector,
-        'Inversión Total': `$${totalInvestmentAmount.toLocaleString()}`,
-        'Ratio de Deuda': `${debtRatio}%`,
-        'Inversión por Persona': `$${investmentPerPersonAmount}`,
-        'Estado Final': analysis.isViable ? '🟢 NEGOCIO VIABLE' : '🔴 NEGOCIO NO VIABLE',
-        'Fecha de Análisis': new Date().toLocaleString('es-ES')
-      });
-      
-      console.log('================== FIN DEL ANÁLISIS DE IA ==================\n');
-      
-      // Guardar datos usando el servicio centralizado
-      const success = BusinessAnalysisService.saveBusinessAnalysis(data, analysis);
-      if (success) {
-        console.log('✅ Datos guardados exitosamente en el servicio centralizado');
+      // Guardar datos en localStorage directamente
+      try {
+        const businessData = {
+          businessName: data.businessName,
+          businessCategory: data.businessCategory,
+          sector: data.sector,
+          exactLocation: data.exactLocation,
+          businessSize: data.businessSize,
+          capacity: data.capacity,
+          financingType: data.financingType,
+          ownCapital: data.ownCapital,
+          loanCapital: data.loanCapital,
+          interestRate: data.interestRate,
+          investmentItems: data.investmentItems,
+          totalInvestment: data.investmentItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0),
+          aiAnalysis: analysis,
+          analysisDate: new Date().toISOString()
+        };
         
-        // Guardar también el nombre del negocio por separado para acceso rápido
-        const nameSuccess = saveBusinessName(data.businessName);
-        if (nameSuccess) {
-          console.log('✅ Nombre del negocio guardado para acceso rápido');
-        }
+        localStorage.setItem('businessSetupData', JSON.stringify(businessData));
+        setHasLocalData(true);
+        console.log('✅ Datos guardados en localStorage exitosamente');
+        
+      } catch (error) {
+        console.error('❌ Error al guardar en localStorage:', error);
       }
       
     } catch (error) {
@@ -583,42 +358,266 @@ export function BusinessSetupPage() {
   // Para validación: solo capital propio + capital prestado (sin intereses)
   const totalCapitalForValidation = Number(watchedValues.ownCapital || 0) + Number(watchedValues.loanCapital || 0);
 
-  // Función para validar si el formulario está completo y correcto
-  const isFormCompleteAndValid = () => {
-    // Validar campos básicos
-    if (!watchedValues.businessName || watchedValues.businessName.length < 3) return false;
-    if (!watchedValues.businessCategory) return false;
-    if (!watchedValues.sector) return false;
-    if (!watchedValues.businessSize) return false;
-    if (!watchedValues.capacity || watchedValues.capacity <= 0) return false;
+  // Función para analizar detalladamente los items de inversión
+  const analyzeInvestmentItems = (items: any[], businessCategory: string, businessSize: string, totalInvestment: number) => {
+    const result = {
+      score: 0,
+      insights: [] as string[],
+      warnings: [] as string[],
+      recommendations: [] as string[]
+    };
+
+    console.log('🔍 Analizando items de inversión:', items);
+
+    // Definir items esenciales por tipo de negocio
+    const essentialItems = {
+      'restaurante': [
+        { name: 'Equipamiento de cocina', minAmount: 5000, priority: 'high' },
+        { name: 'Mobiliario y decoración', minAmount: 3000, priority: 'high' },
+        { name: 'Licencias y permisos', minAmount: 1000, priority: 'high' },
+        { name: 'Garantía de arriendo', minAmount: 2000, priority: 'high' },
+        { name: 'Capital de trabajo', minAmount: 3000, priority: 'medium' },
+        { name: 'Sistema POS', minAmount: 500, priority: 'medium' },
+        { name: 'Marketing inicial', minAmount: 1000, priority: 'medium' },
+        { name: 'Seguros', minAmount: 500, priority: 'low' }
+      ],
+      'cafeteria': [
+        { name: 'Equipamiento de café', minAmount: 3000, priority: 'high' },
+        { name: 'Mobiliario', minAmount: 2000, priority: 'high' },
+        { name: 'Licencias', minAmount: 800, priority: 'high' },
+        { name: 'Garantía de arriendo', minAmount: 1500, priority: 'high' },
+        { name: 'Capital de trabajo', minAmount: 2000, priority: 'medium' },
+        { name: 'Sistema POS', minAmount: 400, priority: 'medium' },
+        { name: 'Marketing inicial', minAmount: 800, priority: 'medium' }
+      ],
+      'fast-food': [
+        { name: 'Equipamiento de cocina rápida', minAmount: 4000, priority: 'high' },
+        { name: 'Mobiliario', minAmount: 1500, priority: 'high' },
+        { name: 'Licencias', minAmount: 1200, priority: 'high' },
+        { name: 'Garantía de arriendo', minAmount: 1800, priority: 'high' },
+        { name: 'Capital de trabajo', minAmount: 2500, priority: 'medium' },
+        { name: 'Sistema de pedidos', minAmount: 600, priority: 'medium' },
+        { name: 'Marketing inicial', minAmount: 1000, priority: 'medium' }
+      ],
+      'panaderia': [
+        { name: 'Equipamiento de panadería', minAmount: 6000, priority: 'high' },
+        { name: 'Mobiliario', minAmount: 2000, priority: 'high' },
+        { name: 'Licencias', minAmount: 1000, priority: 'high' },
+        { name: 'Garantía de arriendo', minAmount: 2000, priority: 'high' },
+        { name: 'Capital de trabajo', minAmount: 3000, priority: 'medium' },
+        { name: 'Sistema POS', minAmount: 500, priority: 'medium' },
+        { name: 'Marketing inicial', minAmount: 800, priority: 'medium' }
+      ],
+      'pizzeria': [
+        { name: 'Horno de pizza', minAmount: 3000, priority: 'high' },
+        { name: 'Equipamiento de cocina', minAmount: 2000, priority: 'high' },
+        { name: 'Mobiliario', minAmount: 1500, priority: 'high' },
+        { name: 'Licencias', minAmount: 1000, priority: 'high' },
+        { name: 'Garantía de arriendo', minAmount: 1800, priority: 'high' },
+        { name: 'Capital de trabajo', minAmount: 2500, priority: 'medium' },
+        { name: 'Sistema de delivery', minAmount: 800, priority: 'medium' },
+        { name: 'Marketing inicial', minAmount: 1000, priority: 'medium' }
+      ],
+      'heladeria': [
+        { name: 'Máquinas de helado', minAmount: 4000, priority: 'high' },
+        { name: 'Equipamiento de cocina', minAmount: 1500, priority: 'high' },
+        { name: 'Mobiliario', minAmount: 1000, priority: 'high' },
+        { name: 'Licencias', minAmount: 800, priority: 'high' },
+        { name: 'Garantía de arriendo', minAmount: 1500, priority: 'high' },
+        { name: 'Capital de trabajo', minAmount: 2000, priority: 'medium' },
+        { name: 'Sistema POS', minAmount: 400, priority: 'medium' },
+        { name: 'Marketing inicial', minAmount: 800, priority: 'medium' }
+      ]
+    };
+
+    // Obtener items esenciales para el tipo de negocio
+    const requiredItems = essentialItems[businessCategory as keyof typeof essentialItems] || essentialItems.restaurante;
     
-    // Validar items de inversión
-    if (!watchedValues.investmentItems || watchedValues.investmentItems.length === 0) return false;
+    // Analizar items existentes
+    const existingItems = items.map(item => item.description?.toLowerCase() || '');
+    const existingAmounts = items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
     
-    const hasValidInvestmentItems = watchedValues.investmentItems.every(item => 
-      item.description && item.description.trim().length > 0 && 
-      item.amount && item.amount > 0
+    // Verificar items faltantes
+    const missingItems = requiredItems.filter(required => {
+      const itemName = required.name.toLowerCase();
+      return !existingItems.some(existing => 
+        existing.includes(itemName.split(' ')[0]) || 
+        existing.includes(itemName.split(' ')[1]) ||
+        itemName.includes(existing.split(' ')[0])
+      );
+    });
+
+    // Calcular puntuación base
+    let baseScore = 10;
+    
+    // Bonificación por items completos
+    const coveragePercentage = ((requiredItems.length - missingItems.length) / requiredItems.length) * 100;
+    if (coveragePercentage >= 80) {
+      baseScore += 10;
+      result.insights.push(`✅ Excelente cobertura de items esenciales (${coveragePercentage.toFixed(0)}%)`);
+    } else if (coveragePercentage >= 60) {
+      baseScore += 5;
+      result.insights.push(`✅ Buena cobertura de items esenciales (${coveragePercentage.toFixed(0)}%)`);
+    } else {
+      result.warnings.push(`⚠️ Cobertura baja de items esenciales (${coveragePercentage.toFixed(0)}%)`);
+    }
+
+    // Analizar items faltantes por prioridad
+    const missingHighPriority = missingItems.filter(item => item.priority === 'high');
+    const missingMediumPriority = missingItems.filter(item => item.priority === 'medium');
+    const missingLowPriority = missingItems.filter(item => item.priority === 'low');
+
+    if (missingHighPriority.length > 0) {
+      result.warnings.push(`⚠️ Faltan ${missingHighPriority.length} items de alta prioridad`);
+      missingHighPriority.forEach(item => {
+        result.recommendations.push(`🔴 ${item.name}: $${item.minAmount.toLocaleString()} - Esencial para operar`);
+      });
+    }
+
+    if (missingMediumPriority.length > 0) {
+      result.warnings.push(`⚠️ Faltan ${missingMediumPriority.length} items de prioridad media`);
+      missingMediumPriority.forEach(item => {
+        result.recommendations.push(`🟡 ${item.name}: $${item.minAmount.toLocaleString()} - Importante para el éxito`);
+      });
+    }
+
+    if (missingLowPriority.length > 0) {
+      missingLowPriority.forEach(item => {
+        result.recommendations.push(`🟢 ${item.name}: $${item.minAmount.toLocaleString()} - Recomendado para optimizar`);
+      });
+    }
+
+    // Analizar distribución de la inversión
+    const avgItemAmount = existingAmounts / items.length;
+    const totalRequired = requiredItems.reduce((sum, item) => sum + item.minAmount, 0);
+    
+    if (existingAmounts >= totalRequired * 0.8) {
+      baseScore += 5;
+      result.insights.push(`✅ Inversión total adecuada para los items requeridos`);
+    } else {
+      result.warnings.push(`⚠️ Inversión total puede ser insuficiente para items requeridos`);
+      result.recommendations.push(`💰 Considera aumentar la inversión total a $${totalRequired.toLocaleString()}`);
+    }
+
+    // Analizar diversificación
+    if (items.length >= 5) {
+      baseScore += 3;
+      result.insights.push(`✅ Buena diversificación con ${items.length} categorías de inversión`);
+    } else if (items.length >= 3) {
+      baseScore += 1;
+      result.insights.push(`✅ Diversificación moderada con ${items.length} categorías`);
+    } else {
+      result.warnings.push(`⚠️ Poca diversificación (solo ${items.length} categorías)`);
+    }
+
+    // Verificar items específicos importantes
+    const hasRentGuarantee = existingItems.some(item => 
+      item.includes('garantía') || item.includes('arriendo') || item.includes('renta')
     );
-    if (!hasValidInvestmentItems) return false;
+    const hasLicenses = existingItems.some(item => 
+      item.includes('licencia') || item.includes('permiso') || item.includes('autorización')
+    );
+    const hasWorkingCapital = existingItems.some(item => 
+      item.includes('capital') || item.includes('trabajo') || item.includes('operativo')
+    );
+
+    // Ajustar recomendaciones según el tamaño del negocio
+    const sizeMultiplier = businessSize === 'micro' ? 0.5 : 
+                          businessSize === 'pequena' ? 1 : 
+                          businessSize === 'mediana' ? 1.5 : 2;
+
+    if (!hasRentGuarantee) {
+      result.warnings.push(`⚠️ No se incluye garantía de arriendo`);
+      const rentAmount = Math.round(2000 * sizeMultiplier);
+      result.recommendations.push(`🏠 Garantía de arriendo: $${rentAmount.toLocaleString()} - Necesaria para alquilar local`);
+    }
+
+    if (!hasLicenses) {
+      result.warnings.push(`⚠️ No se incluyen licencias y permisos`);
+      const licenseAmount = Math.round(1000 * sizeMultiplier);
+      result.recommendations.push(`📋 Licencias y permisos: $${licenseAmount.toLocaleString()} - Obligatorios para operar`);
+    }
+
+    if (!hasWorkingCapital) {
+      result.warnings.push(`⚠️ No se incluye capital de trabajo`);
+      const workingCapitalAmount = Math.round(3000 * sizeMultiplier);
+      result.recommendations.push(`💼 Capital de trabajo: $${workingCapitalAmount.toLocaleString()} - Necesario para operar los primeros meses`);
+    }
+
+    // Recomendaciones específicas por tamaño
+    if (businessSize === 'micro' && totalInvestment > 15000) {
+      result.warnings.push(`⚠️ Inversión muy alta para un negocio micro`);
+      result.recommendations.push(`💰 Considera reducir la inversión o cambiar a tamaño pequeño`);
+    } else if (businessSize === 'grande' && totalInvestment < 50000) {
+      result.warnings.push(`⚠️ Inversión muy baja para un negocio grande`);
+      result.recommendations.push(`💰 Considera aumentar la inversión o cambiar a tamaño mediano`);
+    }
+
+    result.score = Math.min(baseScore, 20); // Máximo 20 puntos
     
-    // Validar que la inversión total sea mayor a 0
-    if (totalInvestment <= 0) return false;
+    // Generar resumen ejecutivo
+    const summary = generateInvestmentSummary(items, missingItems, totalInvestment, businessCategory, businessSize);
+    result.insights.push(summary);
     
-    // Validar financiamiento según el tipo
-    if (watchedValues.financingType === 'personal') {
-      return watchedValues.ownCapital === totalInvestment && watchedValues.loanCapital === 0;
-    } else if (watchedValues.financingType === 'prestamo') {
-      return watchedValues.loanCapital === totalInvestment && 
-             watchedValues.ownCapital === 0 && 
-             watchedValues.interestRate > 0;
-    } else if (watchedValues.financingType === 'mixto') {
-      return watchedValues.ownCapital > 0 && 
-             watchedValues.loanCapital > 0 && 
-             totalCapitalForValidation === totalInvestment && 
-             watchedValues.interestRate > 0;
+    return result;
+  };
+
+  // Función para generar resumen ejecutivo del análisis de inversión
+  const generateInvestmentSummary = (items: any[], missingItems: any[], totalInvestment: number, businessCategory: string, businessSize: string) => {
+    const totalRequired = missingItems.reduce((sum, item) => sum + item.minAmount, 0);
+    const coveragePercentage = ((items.length - missingItems.length) / items.length) * 100;
+    
+    let summary = `📊 Resumen: ${items.length} items configurados, ${missingItems.length} faltantes. `;
+    
+    if (coveragePercentage >= 80) {
+      summary += `Excelente cobertura (${coveragePercentage.toFixed(0)}%). `;
+    } else if (coveragePercentage >= 60) {
+      summary += `Buena cobertura (${coveragePercentage.toFixed(0)}%). `;
+    } else {
+      summary += `Cobertura baja (${coveragePercentage.toFixed(0)}%). `;
     }
     
-    return false;
+    if (missingItems.length > 0) {
+      summary += `Faltan $${totalRequired.toLocaleString()} en items esenciales.`;
+    } else {
+      summary += `Todos los items esenciales están cubiertos.`;
+    }
+    
+    return summary;
+  };
+
+  // Función para validar si el formulario está completo y correcto (SIMPLIFICADA)
+  const isFormCompleteAndValid = () => {
+    // Solo validar campos mínimos para permitir el análisis
+    const hasBasicInfo = watchedValues.businessName && 
+                        watchedValues.businessName.length >= 2 &&
+                        watchedValues.businessCategory &&
+                        watchedValues.sector &&
+                        watchedValues.businessSize &&
+                        watchedValues.capacity > 0;
+
+    const hasInvestment = watchedValues.investmentItems && 
+                         watchedValues.investmentItems.length > 0 &&
+                         watchedValues.investmentItems.some(item => 
+                           item.description && item.description.trim().length > 0 && 
+                           item.amount && item.amount > 0
+                         );
+
+    const isValid = hasBasicInfo && hasInvestment;
+    
+    console.log('🔍 Validación simplificada:', {
+      hasBasicInfo,
+      hasInvestment,
+      isValid,
+      businessName: watchedValues.businessName,
+      businessCategory: watchedValues.businessCategory,
+      sector: watchedValues.sector,
+      businessSize: watchedValues.businessSize,
+      capacity: watchedValues.capacity,
+      investmentItems: watchedValues.investmentItems?.length || 0
+    });
+
+    return isValid;
   };
 
   // Sincronizar automáticamente los valores de financiamiento cuando cambie la inversión total
@@ -699,9 +698,9 @@ export function BusinessSetupPage() {
   };
 
   const onSubmit = async (data: BusinessSetupForm) => {
-    // Si no hay análisis de IA, guardar primero y luego generar análisis
+    // Si no hay análisis de IA, generar análisis con localStorage
     if (!aiAnalysis) {
-      await saveBusinessAndGenerateAnalysis(data);
+      await generateAnalysisWithLocalStorage(data);
       return;
     }
     
@@ -741,6 +740,25 @@ export function BusinessSetupPage() {
     // Resetear análisis para permitir nuevo análisis si es necesario
     setAiAnalysis(null);
   };
+
+  // Función para limpiar datos de localStorage
+  const clearLocalStorageData = () => {
+    try {
+      localStorage.removeItem('businessSetupData');
+      setHasLocalData(false);
+      setAiAnalysis(null);
+      console.log('🗑️ Datos de localStorage limpiados');
+      toast.success('Datos limpiados exitosamente');
+    } catch (error) {
+      console.error('❌ Error al limpiar localStorage:', error);
+    }
+  };
+
+  // Verificar si hay datos guardados en localStorage
+  useEffect(() => {
+    const savedData = localStorage.getItem('businessSetupData');
+    setHasLocalData(!!savedData);
+  }, []);
 
   return (
     <MainLayout>
@@ -1321,13 +1339,23 @@ export function BusinessSetupPage() {
 
           {/* Botones de acción */}
           <div className="flex justify-between items-center pt-6">
-            <button
-              type="button"
-              onClick={() => navigate('/dashboard')}
-              className="px-6 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Volver al Dashboard
-            </button>
+            <div className="flex space-x-3">
+              <button
+                type="button"
+                onClick={() => navigate('/dashboard')}
+                className="px-6 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Volver al Dashboard
+              </button>
+              
+              <button
+                type="button"
+                onClick={clearLocalStorageData}
+                className="px-4 py-3 text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors text-sm"
+              >
+                Limpiar Datos
+              </button>
+            </div>
             
             <div className="flex items-center space-x-3">
               {/* Indicador de progreso */}
@@ -1335,6 +1363,14 @@ export function BusinessSetupPage() {
                 <div className="flex items-center text-green-600 text-sm">
                   <span className="mr-2">✅</span>
                   Listo para analizar con IA
+                </div>
+              )}
+              
+              {/* Indicador de datos guardados */}
+              {hasLocalData && (
+                <div className="flex items-center text-blue-600 text-sm">
+                  <span className="mr-2">💾</span>
+                  Datos guardados
                 </div>
               )}
             

@@ -41,7 +41,7 @@ export function HomePage() {
                </div>
                <div>
                  <h1 className="text-xl font-bold text-white">
-                   KrakeDev
+                   Simulador
                  </h1>
                  <p className="text-xs text-gray-300 -mt-1">Simulador de Costos</p>
                </div>

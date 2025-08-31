@@ -14,9 +14,13 @@ import {
   ArrowLeft,
   ArrowRight,
   RefreshCw,
-  Package
+  Package,
+  Download,
+  Upload,
+  Trash2
 } from 'lucide-react';
 import { apiService } from '../../../../shared/infrastructure/services/api.service';
+import { BusinessDataLocalStorageService } from '../../../../shared/infrastructure/services/businessDataLocalStorage.service';
 import toast from 'react-hot-toast';
 
 interface ProductoPrecioVenta {
@@ -46,8 +50,7 @@ interface ResumenCostosGanancias {
 }
 
 export function PrecioVentaPage() {
-  // ID del negocio (en un caso real esto vendría del contexto o props)
-  const negocioId = 1; // Temporal - debería venir del contexto de autenticación
+  const negocioId = 1;
   const navigate = useNavigate();
   
   const [productos, setProductos] = useState<ProductoPrecioVenta[]>([]);
@@ -56,11 +59,94 @@ export function PrecioVentaPage() {
   const [error, setError] = useState<string | null>(null);
   const [editingProduct, setEditingProduct] = useState<number | null>(null);
   const [editingPrice, setEditingPrice] = useState<string>('');
+  const [hasLocalData, setHasLocalData] = useState(false);
+  const [dataSource, setDataSource] = useState<'local' | 'api'>('local');
 
   useEffect(() => {
-    // Ahora siempre cargamos datos ya que tenemos negocioId
-    cargarDatos();
+    loadDataFromLocalStorage();
   }, []);
+
+  const loadDataFromLocalStorage = () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Intentar cargar datos del localStorage de precio de venta
+      const savedProductos = BusinessDataLocalStorageService.getPrecioVentaProductos();
+      const savedResumen = BusinessDataLocalStorageService.getPrecioVentaResumen();
+      const lastUpdated = BusinessDataLocalStorageService.getPrecioVentaLastUpdated();
+
+      if (savedProductos.length > 0) {
+        setProductos(savedProductos);
+        setResumen(savedResumen);
+        setHasLocalData(true);
+        setDataSource('local');
+        
+        if (lastUpdated) {
+          toast.success(`Datos cargados (última actualización: ${new Date(lastUpdated).toLocaleString()})`);
+        }
+      } else {
+        // Si no hay datos de precio de venta, intentar generar desde costos variables
+        generateFromVariableCosts();
+      }
+    } catch (err) {
+      setError('Error al cargar datos del localStorage');
+      console.error('Error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateFromVariableCosts = () => {
+    try {
+      const variableCostsProducts = BusinessDataLocalStorageService.getVariableCostsProducts();
+      
+      if (variableCostsProducts.length > 0) {
+        const generatedProductos: ProductoPrecioVenta[] = variableCostsProducts.map((product, index) => {
+          const costoTotal = product.type === 'recipe' && product.ingredients 
+            ? product.ingredients.reduce((total, ingredient) => {
+                const costPerPortion = ingredient.unitPrice / (ingredient.portionsObtained || 1);
+                return total + (costPerPortion * ingredient.portion);
+              }, 0)
+            : product.resaleCost || 0;
+
+          const precioSugerido = costoTotal * 1.3; // 30% de margen sugerido
+          const precioCliente = precioSugerido;
+          const gananciaPorUnidad = precioCliente - costoTotal;
+          const margenGanancia = costoTotal > 0 ? (gananciaPorUnidad / precioCliente) * 100 : 0;
+
+          return {
+            producto_id: index + 1,
+            nombre_producto: product.name,
+            costo_total_producto: costoTotal,
+            precio_venta_sugerido_ia: precioSugerido,
+            precio_venta_cliente: precioCliente,
+            margen_ganancia_ia: margenGanancia,
+            margen_ganancia_real: margenGanancia,
+            ganancia_por_unidad: gananciaPorUnidad,
+            rentabilidad_producto: margenGanancia
+          };
+        });
+
+        setProductos(generatedProductos);
+        
+        // Calcular resumen
+        const resumenCalculado = BusinessDataLocalStorageService.calculateResumenFromPrecioVenta();
+        if (resumenCalculado) {
+          setResumen(resumenCalculado);
+        }
+
+        setHasLocalData(true);
+        setDataSource('local');
+        toast.success(`Datos generados desde costos variables (${generatedProductos.length} productos)`);
+      } else {
+        setError('No hay datos de costos variables disponibles. Completa primero la sección de Costos Variables.');
+      }
+    } catch (err) {
+      setError('Error al generar datos desde costos variables');
+      console.error('Error:', err);
+    }
+  };
 
   const cargarDatos = async () => {
     try {
@@ -72,6 +158,7 @@ export function PrecioVentaPage() {
       if (response.data) {
         setProductos(response.data.productos);
         setResumen(response.data.resumen);
+        setDataSource('api');
       } else {
         setError(response.message || 'Error al cargar datos');
       }
@@ -93,6 +180,27 @@ export function PrecioVentaPage() {
     setEditingPrice('');
   };
 
+  const saveToLocalStorage = () => {
+    try {
+      BusinessDataLocalStorageService.savePrecioVentaProductos(productos);
+      if (resumen) {
+        BusinessDataLocalStorageService.savePrecioVentaResumen(resumen);
+      }
+             toast.success('Datos guardados exitosamente');
+    } catch (error) {
+             toast.error('Error al guardar');
+      console.error('Error:', error);
+    }
+  };
+
+  const clearLocalData = () => {
+    BusinessDataLocalStorageService.clearPrecioVentaData();
+    setProductos([]);
+    setResumen(null);
+    setHasLocalData(false);
+         toast.success('Datos eliminados');
+  };
+
   const guardarPrecio = async (productoId: number) => {
     try {
       const nuevoPrecio = parseFloat(editingPrice);
@@ -102,28 +210,25 @@ export function PrecioVentaPage() {
         return;
       }
 
-      const response = await apiService.put(
-        `/api/v1/productos-precio-venta/${negocioId}/producto/${productoId}`,
-        { precio_venta_cliente: nuevoPrecio }
+      // Actualizar productos en el estado
+      const updatedProductos = productos.map(p => 
+        p.producto_id === productoId 
+          ? { ...p, precio_venta_cliente: nuevoPrecio }
+          : p
       );
-
-      if (response.data) {
-        setProductos(prev => prev.map(p => 
-          p.producto_id === productoId 
-            ? response.data 
-            : p
-        ));
-        
-        await cargarDatos();
-        
-        toast.success('Precio actualizado exitosamente');
-        setEditingProduct(null);
-        setEditingPrice('');
-      } else {
-        toast.error(response.message || 'Error al actualizar precio');
-      }
+      
+      setProductos(updatedProductos);
+      
+      // Guardar automáticamente en localStorage
+      BusinessDataLocalStorageService.savePrecioVentaProductos(updatedProductos);
+      const newResumen = BusinessDataLocalStorageService.calculateResumenFromPrecioVenta(updatedProductos);
+      BusinessDataLocalStorageService.savePrecioVentaResumen(newResumen);
+      
+      toast.success('Precio actualizado y guardado automáticamente');
+      setEditingProduct(null);
+      setEditingPrice('');
     } catch (err) {
-      toast.error('Error de conexión al actualizar precio');
+      toast.error('Error al actualizar precio');
       console.error('Error:', err);
     }
   };
@@ -197,6 +302,15 @@ export function PrecioVentaPage() {
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Precio de Venta</h1>
                 <p className="text-gray-600">Análisis de costos, precios y rentabilidad de productos</p>
+                
+                {/* Indicador de origen de datos */}
+                {hasLocalData && (
+                  <div className="mt-2 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                    <Download className="w-4 h-4 mr-1" />
+                                         Datos guardados
+                    {dataSource === 'local' && ' (generados desde costos variables)'}
+                  </div>
+                )}
               </div>
               <button
                 onClick={cargarDatos}
@@ -432,14 +546,58 @@ export function PrecioVentaPage() {
 
           {/* Botones de navegación */}
           <div className="flex justify-between items-center pt-6">
-            <button
-              type="button"
-              onClick={() => navigate('/variable-costs')}
-              className="px-6 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center space-x-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Paso Anterior</span>
-            </button>
+            <div className="flex items-center space-x-4">
+              <button
+                type="button"
+                onClick={() => navigate('/variable-costs')}
+                className="px-6 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center space-x-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Paso Anterior</span>
+              </button>
+
+              {/* Botones de localStorage */}
+              {hasLocalData && (
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={loadDataFromLocalStorage}
+                    className="px-4 py-2 text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors flex items-center space-x-2"
+                                         title="Recargar datos"
+                  >
+                    <Upload className="w-4 h-4" />
+                    <span>Recargar</span>
+                  </button>
+                  <button
+                    onClick={saveToLocalStorage}
+                    className="px-4 py-2 text-green-600 border border-green-300 rounded-lg hover:bg-green-50 transition-colors flex items-center space-x-2"
+                                         title="Guardar datos"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Guardar</span>
+                  </button>
+                  <button
+                    onClick={clearLocalData}
+                    className="px-4 py-2 text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors flex items-center space-x-2"
+                                         title="Eliminar datos"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Limpiar</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Botón para generar desde costos variables */}
+              {!hasLocalData && (
+                <button
+                  onClick={generateFromVariableCosts}
+                  className="px-4 py-2 text-purple-600 border border-purple-300 rounded-lg hover:bg-purple-50 transition-colors flex items-center space-x-2"
+                  title="Generar desde costos variables"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Generar desde Costos Variables</span>
+                </button>
+              )}
+            </div>
             
             <button
               onClick={() => navigate('/profitability-analysis')}

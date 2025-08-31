@@ -241,6 +241,79 @@ export function BusinessAnalysisModal({
                     </ul>
                   </div>
                 )}
+
+                {/* Análisis Detallado de Inversión */}
+                <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-6 border-l-4 border-purple-400 mt-6">
+                  <h4 className="font-bold text-purple-800 mb-4 flex items-center">
+                    <span className="text-2xl mr-2">💰</span>
+                    📊 Análisis Detallado de Inversión Inicial
+                  </h4>
+                  
+                  <div className="grid md:grid-cols-2 gap-6">
+                    {/* Items Actuales */}
+                    <div className="bg-white rounded-lg p-4 shadow-sm">
+                      <h5 className="font-semibold text-gray-800 mb-3 flex items-center">
+                        <span className="text-green-500 mr-2">✅</span>
+                        Items Incluidos ({businessData.investmentItems?.length || 0})
+                      </h5>
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        {businessData.investmentItems?.map((item: any, index: number) => (
+                          <div key={index} className="flex justify-between items-center text-sm">
+                            <span className="text-gray-700 truncate">{item.description}</span>
+                            <span className="font-medium text-green-600">${Number(item.amount).toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Resumen de Inversión */}
+                    <div className="bg-white rounded-lg p-4 shadow-sm">
+                      <h5 className="font-semibold text-gray-800 mb-3 flex items-center">
+                        <span className="text-blue-500 mr-2">📈</span>
+                        Resumen Financiero
+                      </h5>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Inversión Total:</span>
+                          <span className="font-semibold text-blue-600">${totalInvestment.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Items Configurados:</span>
+                          <span className="font-medium">{businessData.investmentItems?.length || 0}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Promedio por Item:</span>
+                          <span className="font-medium">${(totalInvestment / (businessData.investmentItems?.length || 1)).toFixed(0)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Prioridades de Items */}
+                  <div className="mt-4 bg-white rounded-lg p-4 shadow-sm">
+                    <h5 className="font-semibold text-gray-800 mb-3 flex items-center">
+                      <span className="text-orange-500 mr-2">🎯</span>
+                      Prioridades de Inversión
+                    </h5>
+                    <div className="grid md:grid-cols-3 gap-4 text-sm">
+                      <div className="text-center">
+                        <div className="text-red-500 font-bold text-lg">🔴</div>
+                        <div className="font-semibold text-red-700">Alta Prioridad</div>
+                        <div className="text-gray-600">Esenciales para operar</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-yellow-500 font-bold text-lg">🟡</div>
+                        <div className="font-semibold text-yellow-700">Media Prioridad</div>
+                        <div className="text-gray-600">Importantes para el éxito</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-green-500 font-bold text-lg">🟢</div>
+                        <div className="font-semibold text-green-700">Baja Prioridad</div>
+                        <div className="text-gray-600">Recomendados para optimizar</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* 4. CONCLUSIÓN FINAL */}

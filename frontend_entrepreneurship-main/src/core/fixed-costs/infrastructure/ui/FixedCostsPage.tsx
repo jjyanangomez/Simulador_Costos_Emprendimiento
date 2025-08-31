@@ -14,16 +14,15 @@ import {
   ArrowRight,
   ArrowLeft,
   X,
-  BarChart3
+  BarChart3,
+  Upload,
+  Download
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCategorias } from '../hooks/useCategorias';
 import { CategoriaSelector } from '../components/CategoriaSelector';
-import { LocalStorageService } from '../../../../shared/services/localStorage.service';
-import type { CostosFijosData } from '../../../../shared/services/localStorage.service';
-import { AiAnalysisBackendService } from '../../../../shared/services/aiAnalysisBackend.service';
-import { apiService } from '../../../../shared/infrastructure/services/api.service';
-
+import { BusinessDataLocalStorageService } from '../../../../shared/infrastructure/services/businessDataLocalStorage.service';
+import type { FixedCost } from '../../../../shared/infrastructure/services/businessDataLocalStorage.service';
 
 // Esquema de validación para costos fijos
 const fixedCostSchema = z.object({
@@ -38,15 +37,18 @@ const fixedCostSchema = z.object({
 
 type FixedCostForm = z.infer<typeof fixedCostSchema>;
 
-// Las categorías se cargarán dinámicamente desde el backend
-const getCostCategories = (costTypes: any[]) => {
-  return costTypes.map(type => ({
-    value: type.tipo_costo_id.toString(),
-    label: type.nombre,
-    icon: '💰', // Icono genérico
-    description: type.descripcion || 'Tipo de costo'
-  }));
-};
+// Categorías hardcodeadas para costos fijos
+const costCategories = [
+  { value: 'arriendo', label: 'Arriendo/Renta del Local', icon: '🏢', description: 'Pago mensual del local' },
+  { value: 'sueldos', label: 'Sueldos y Salarios', icon: '👥', description: 'Remuneraciones del personal' },
+  { value: 'servicios', label: 'Servicios Básicos', icon: '⚡', description: 'Luz, agua, internet, etc.' },
+  { value: 'publicidad', label: 'Publicidad y Marketing', icon: '📢', description: 'Campañas publicitarias' },
+  { value: 'licencias', label: 'Licencias y Permisos', icon: '📋', description: 'Licencias comerciales' },
+  { value: 'seguros', label: 'Seguros', icon: '🛡️', description: 'Pólizas de seguro' },
+  { value: 'mantenimiento', label: 'Mantenimiento', icon: '🔧', description: 'Mantenimiento de equipos' },
+  { value: 'transporte', label: 'Transporte', icon: '🚚', description: 'Costos de transporte' },
+  { value: 'otros', label: 'Otros Costos', icon: '💰', description: 'Costos adicionales' },
+];
 
 const frequencyOptions = [
   { value: 'mensual', label: 'Mensual', multiplier: 1 },
@@ -55,11 +57,8 @@ const frequencyOptions = [
 ];
 
 // Simulación de validación con IA
-const validateCostWithAI = (cost: any, costTypes: any[]) => {
+const validateCostWithAI = (cost: any) => {
   const validations = [];
-  
-  // Obtener el nombre de la categoría para la validación
-  const categoryName = costTypes.find(type => type.tipo_costo_id.toString() === cost.category)?.nombre?.toLowerCase() || '';
   
   // Validaciones basadas en rangos típicos del mercado ecuatoriano
   const marketRanges: Record<string, { min: number; max: number; unit: string }> = {
@@ -83,7 +82,7 @@ const validateCostWithAI = (cost: any, costTypes: any[]) => {
   // Buscar coincidencias en el nombre de la categoría
   let range = null;
   for (const [key, value] of Object.entries(marketRanges)) {
-    if (categoryName.includes(key)) {
+    if (cost.category.includes(key)) {
       range = value;
       break;
     }
@@ -131,10 +130,9 @@ export function FixedCostsPage() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [aiValidations, setAiValidations] = useState<Record<number, any[]>>({});
-  const [negocioId, setNegocioId] = useState<number>(16); // Usar el negocio que creamos
-  const [costTypes, setCostTypes] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showResultsModal, setShowResultsModal] = useState(false);
+  const [hasLocalData, setHasLocalData] = useState(false);
 
   const {
     control,
@@ -145,15 +143,7 @@ export function FixedCostsPage() {
   } = useForm<FixedCostForm>({
     resolver: zodResolver(fixedCostSchema),
     defaultValues: {
-      costs: [
-        {
-          name: 'Arriendo del Local',
-          description: 'Renta mensual del local comercial',
-          amount: 1200,
-          frequency: 'mensual',
-          category: '',
-        }
-      ],
+      costs: [],
     },
   });
 
@@ -163,6 +153,48 @@ export function FixedCostsPage() {
   });
 
   const watchedCosts = watch('costs');
+
+  // Cargar datos del localStorage al montar el componente
+  useEffect(() => {
+    loadFromLocalStorage();
+  }, []);
+
+  const loadFromLocalStorage = () => {
+    try {
+      const savedCosts = BusinessDataLocalStorageService.getFixedCosts();
+      const lastUpdated = BusinessDataLocalStorageService.getFixedCostsLastUpdated();
+
+      if (savedCosts.length > 0) {
+        // Convertir formato de localStorage al formato del formulario
+        const formCosts = savedCosts.map(cost => ({
+          name: cost.name,
+          description: cost.description || '',
+          amount: cost.amount,
+          frequency: cost.frequency,
+          category: cost.category,
+        }));
+
+        setValue('costs', formCosts);
+        setHasLocalData(true);
+        
+        if (lastUpdated) {
+          toast.success(`Datos cargados (última actualización: ${new Date(lastUpdated).toLocaleString()})`);
+        }
+      } else {
+        // Si no hay datos, agregar un costo por defecto
+        append({
+          name: 'Arriendo del Local',
+          description: 'Renta mensual del local comercial',
+          amount: 1200,
+          frequency: 'mensual',
+          category: 'arriendo',
+        });
+      }
+    } catch (error) {
+      console.error('Error al cargar datos del localStorage:', error);
+      toast.error('Error al cargar datos guardados');
+    }
+  };
 
   // Calcular totales - CORREGIDO para sumar todos los costos
   const calculateTotals = () => {
@@ -213,56 +245,11 @@ export function FixedCostsPage() {
     });
   }, [watchedCosts.length]);
 
-  // Cargar SOLO las categorías disponibles del backend
-  useEffect(() => {
-    const loadInitialData = async () => {
-      try {
-        setIsLoading(true);
-
-        console.log('🔍 Intentando conectar con el backend...');
-        
-        // SOLO cargar tipos de costo (categorías disponibles)
-        console.log('📋 Cargando categorías disponibles...');
-        const costTypesResponse = await apiService.getCostTypes();
-        console.log('✅ Respuesta categorías:', costTypesResponse);
-        
-        if (costTypesResponse.data) {
-          setCostTypes(costTypesResponse.data);
-          console.log(`📊 ${costTypesResponse.data.length} categorías cargadas`);
-        } else {
-          console.warn('⚠️ No se recibieron categorías del backend');
-          setCostTypes([]);
-        }
-        
-        // NO cargar costos existentes - el usuario los ingresará manualmente
-        
-      } catch (error) {
-        console.error('💥 Error cargando categorías:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-        console.error('Error de conexión:', errorMessage);
-        toast.error('Error al cargar las categorías disponibles');
-        
-        // Fallback: usar categorías hardcodeadas si falla la conexión
-        setCostTypes([
-          { tipo_costo_id: 1, nombre: 'Arriendo/Renta del Local', descripcion: 'Pago mensual del local' },
-          { tipo_costo_id: 2, nombre: 'Sueldos y Salarios', descripcion: 'Remuneraciones del personal' },
-          { tipo_costo_id: 3, nombre: 'Servicios Básicos', descripcion: 'Luz, agua, internet, etc.' },
-          { tipo_costo_id: 4, nombre: 'Publicidad y Marketing', descripcion: 'Campañas publicitarias' },
-          { tipo_costo_id: 5, nombre: 'Otros Costos', descripcion: 'Costos adicionales' },
-        ]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadInitialData();
-  }, []); // Solo se ejecuta una vez al cargar la página
-
-  // Validar costo con IA - CORREGIDO para usar categorías del backend
+  // Validar costo con IA
   const validateCost = (index: number) => {
     const cost = watchedCosts[index];
-    if (cost.name && cost.amount && cost.category && costTypes.length > 0) {
-      const validations = validateCostWithAI(cost, costTypes);
+    if (cost.name && cost.amount && cost.category) {
+      const validations = validateCostWithAI(cost);
       setAiValidations(prev => ({ ...prev, [index]: validations }));
     }
   };
@@ -275,6 +262,67 @@ export function FixedCostsPage() {
       frequency: 'mensual',
       category: '',
     });
+    
+    // Guardar automáticamente después de agregar
+    setTimeout(() => {
+      const costs: FixedCost[] = watchedCosts.map((cost, index) => ({
+        id: `cost-${index}`,
+        name: cost.name,
+        description: cost.description,
+        amount: cost.amount,
+        frequency: cost.frequency,
+        category: cost.category,
+      }));
+      
+      BusinessDataLocalStorageService.saveFixedCostsData({ costs });
+      toast.success('Costo agregado y guardado automáticamente');
+    }, 100);
+  };
+
+  const removeCost = (index: number) => {
+    remove(index);
+    
+    // Guardar automáticamente después de eliminar
+    setTimeout(() => {
+      const costs: FixedCost[] = watchedCosts.map((cost, idx) => ({
+        id: `cost-${idx}`,
+        name: cost.name,
+        description: cost.description,
+        amount: cost.amount,
+        frequency: cost.frequency,
+        category: cost.category,
+      }));
+      
+      BusinessDataLocalStorageService.saveFixedCostsData({ costs });
+      toast.success('Costo eliminado y guardado automáticamente');
+    }, 100);
+  };
+
+  const saveToLocalStorage = () => {
+    try {
+      const costs: FixedCost[] = watchedCosts.map((cost, index) => ({
+        id: `cost-${index}`,
+        name: cost.name,
+        description: cost.description,
+        amount: cost.amount,
+        frequency: cost.frequency,
+        category: cost.category,
+      }));
+
+      BusinessDataLocalStorageService.saveFixedCostsData({ costs });
+      setHasLocalData(true);
+      toast.success('Datos guardados exitosamente');
+    } catch (error) {
+      console.error('Error al guardar en localStorage:', error);
+      toast.error('Error al guardar datos');
+    }
+  };
+
+  const clearLocalData = () => {
+    BusinessDataLocalStorageService.clearFixedCostsData();
+    setValue('costs', []);
+    setHasLocalData(false);
+    toast.success('Datos eliminados');
   };
 
   const onSubmit = async (data: FixedCostForm) => {
@@ -283,34 +331,26 @@ export function FixedCostsPage() {
     try {
       console.log('🚀 Guardando costos fijos...', data.costs);
       
-      // Guardar cada costo en el backend
-      const savePromises = data.costs.map(async (cost) => {
-        // Mapear el formato del frontend al formato del backend
-        const backendCostData = {
-          negocioId: negocioId,
-          tipoCostoId: parseInt(cost.category), // Convertir string a number
-          nombre: cost.name,
-          descripcion: cost.description || '',
-          monto: cost.amount,
-          frecuencia: cost.frequency,
-          activo: true
-        };
-        
-        console.log('📤 Enviando costo al backend:', backendCostData);
-        return apiService.createFixedCost(backendCostData);
-      });
+      // Guardar en localStorage
+      const costs: FixedCost[] = data.costs.map((cost, index) => ({
+        id: `cost-${index}`,
+        name: cost.name,
+        description: cost.description,
+        amount: cost.amount,
+        frequency: cost.frequency,
+        category: cost.category,
+      }));
+
+      BusinessDataLocalStorageService.saveFixedCostsData({ costs });
+      setHasLocalData(true);
       
-      // Esperar a que se guarden todos los costos
-      const results = await Promise.all(savePromises);
-      console.log('✅ Costos guardados:', results);
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      toast.success(`¡${data.costs.length} costos fijos guardados exitosamente en la base de datos!`);
-      
-      // Navegar al siguiente paso
-      navigate('/variable-costs');
+      setShowResultsModal(true);
+      toast.success('¡Costos fijos guardados automáticamente!');
     } catch (error) {
-      console.error('❌ Error al guardar los costos fijos:', error);
-      toast.error('Error al guardar los costos fijos en la base de datos');
+      console.error('Error al guardar costos fijos:', error);
+      toast.error('Error al guardar los costos fijos');
     } finally {
       setIsSubmitting(false);
     }
@@ -545,7 +585,7 @@ export function FixedCostsPage() {
                       {fields.length > 1 && (
                         <button
                           type="button"
-                          onClick={() => remove(index)}
+                          onClick={() => removeCost(index)}
                           className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -600,7 +640,7 @@ export function FixedCostsPage() {
                             }}
                           >
                             <option value="">Selecciona una categoría</option>
-                            {getCostCategories(costTypes).map((category: any) => (
+                            {costCategories.map((category: any) => (
                               <option key={category.value} value={category.value}>
                                 {category.icon} {category.label}
                               </option>
@@ -613,7 +653,7 @@ export function FixedCostsPage() {
                       )}
                       {watchedCosts[index]?.category && (
                         <p className="mt-2 text-sm text-gray-600">
-                          {getCostCategories(costTypes).find((c: any) => c.value === watchedCosts[index].category)?.description}
+                          {costCategories.find((c: any) => c.value === watchedCosts[index].category)?.description}
                         </p>
                       )}
                     </div>
@@ -781,23 +821,69 @@ export function FixedCostsPage() {
 
           {/* Botones de acción */}
           <div className="flex justify-between items-center pt-6">
-            <button
-              type="button"
-              onClick={() => navigate('/business-setup')}
-              className="px-6 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center space-x-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Paso Anterior</span>
-            </button>
+            <div className="flex items-center space-x-4">
+              <button
+                type="button"
+                onClick={() => navigate('/business-setup')}
+                className="px-6 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center space-x-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Paso Anterior</span>
+              </button>
+
+              {/* Botones de localStorage */}
+              {hasLocalData && (
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={loadFromLocalStorage}
+                    className="px-4 py-2 text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition-colors flex items-center space-x-2"
+                    title="Recargar datos"
+                  >
+                    <Upload className="w-4 h-4" />
+                    <span>Recargar</span>
+                  </button>
+                  <button
+                    onClick={clearLocalData}
+                    className="px-4 py-2 text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors flex items-center space-x-2"
+                    title="Eliminar datos"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Limpiar</span>
+                  </button>
+                </div>
+              )}
+            </div>
             
-            <button
-              type="button"
-              onClick={() => setShowResultsModal(true)}
-              className="px-8 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2"
-            >
-              <BarChart3 className="w-4 h-4" />
-              <span>Ver Resultados</span>
-            </button>
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={saveToLocalStorage}
+                className="px-4 py-2 text-green-600 border border-green-300 rounded-lg hover:bg-green-50 transition-colors flex items-center space-x-2"
+                title="Guardar datos"
+              >
+                <Save className="w-4 h-4" />
+                <span>Guardar</span>
+              </button>
+              
+              <button
+                type="submit"
+                disabled={isSubmitting || !isValid}
+                className="px-8 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Guardando...</span>
+                  </>
+                ) : (
+                  <>
+                    <BarChart3 className="w-4 h-4" />
+                    <span>Guardar y Continuar</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </form>
       </div>

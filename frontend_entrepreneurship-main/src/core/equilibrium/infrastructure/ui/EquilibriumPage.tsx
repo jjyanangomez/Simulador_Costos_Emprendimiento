@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { MainLayout } from '../../../../shared/infrastructure/components/MainLayout';
 import { Target, TrendingUp, DollarSign, Calculator, BarChart3, ChefHat, AlertCircle, CheckCircle } from 'lucide-react';
-import { apiService } from '../../../../shared/infrastructure/services/api.service';
+import { BusinessDataLocalStorageService } from '../../../../shared/infrastructure/services/businessDataLocalStorage.service';
+import toast from 'react-hot-toast';
 
 export function EquilibriumPage() {
-  // Estado para los costos fijos desde la base de datos
+  // Estado para los costos fijos (por defecto 0)
   const [costosFijos, setCostosFijos] = useState<number>(0);
   const [loadingCostos, setLoadingCostos] = useState<boolean>(true);
   
-  // Estado para las recetas desde la base de datos
+  // Estado para las recetas desde localStorage
   const [recetas, setRecetas] = useState<any[]>([]);
   const [loadingRecetas, setLoadingRecetas] = useState<boolean>(true);
   
@@ -106,40 +107,64 @@ export function EquilibriumPage() {
     }));
   };
 
-  // Función para cargar recetas desde la base de datos
+  // Función para cargar recetas desde localStorage
   const cargarRecetas = async () => {
     try {
       setLoadingRecetas(true);
-      console.log('🔄 Iniciando carga de recetas...');
+      console.log('🔄 Iniciando carga de recetas desde localStorage...');
       
-      const response = await apiService.get('/api/v1/recetas/all');
-      console.log('📡 Respuesta completa de la API:', response);
+      // Obtener productos de costos variables del localStorage
+      const variableCostsProducts = BusinessDataLocalStorageService.getVariableCostsProducts();
       
-      if (response && response.data && response.data.length > 0) {
-        console.log('✅ Recetas cargadas desde BD:', response.data);
-        console.log('📊 Cantidad de recetas:', response.data.length);
-        console.log('🔍 Primera receta:', response.data[0]);
-        setRecetas(response.data);
+      if (variableCostsProducts.length > 0) {
+        // Convertir productos de costos variables a formato de recetas para equilibrio
+        const recetasFromLocalStorage = variableCostsProducts
+          .filter(product => product.type === 'recipe') // Solo productos de tipo receta
+          .map((product, index) => {
+            // Calcular costo total del producto
+            const costoTotal = product.ingredients 
+              ? product.ingredients.reduce((total, ingredient) => {
+                  const costPerPortion = ingredient.unitPrice / (ingredient.portionsObtained || 1);
+                  return total + (costPerPortion * ingredient.portion);
+                }, 0)
+              : 0;
+
+            // Obtener precio de venta del localStorage de precio de venta
+            const precioVentaProductos = BusinessDataLocalStorageService.getPrecioVentaProductos();
+            const precioVentaProducto = precioVentaProductos.find(p => p.nombre_producto === product.name);
+            const precioVenta = precioVentaProducto ? precioVentaProducto.precio_venta_cliente : costoTotal * 1.3; // 30% margen por defecto
+
+            return {
+              receta_id: index + 1,
+              nombre_receta: product.name,
+              precio_venta: precioVenta,
+              costo_receta: costoTotal,
+              descripcion: `Receta de ${product.name}`,
+              tiempo_preparacion: product.preparationTime || 30,
+              dificultad: 'Media',
+              categoria: 'Principal'
+            };
+          });
+
+        console.log('✅ Recetas cargadas desde localStorage:', recetasFromLocalStorage);
+        console.log('📊 Cantidad de recetas:', recetasFromLocalStorage.length);
+        
+        setRecetas(recetasFromLocalStorage);
+        
         // Inicializar cantidades de ventas con valores por defecto
         const cantidadesIniciales: { [key: number]: number } = {};
-        response.data.forEach((receta: any) => {
+        recetasFromLocalStorage.forEach((receta: any) => {
           cantidadesIniciales[receta.receta_id] = 0; // Comenzar desde 0
         });
         setCantidadesVentas(cantidadesIniciales);
         console.log('🎯 Cantidades iniciales configuradas:', cantidadesIniciales);
       } else {
-        console.log('⚠️  No hay recetas en la base de datos');
-        console.log('❌ Response:', response);
+        console.log('⚠️ No hay productos de receta en localStorage');
         setRecetas([]);
         setCantidadesVentas({});
       }
     } catch (error) {
-      console.error('❌ Error al cargar recetas:', error);
-      console.error('❌ Error details:', {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      });
+      console.error('❌ Error al cargar recetas desde localStorage:', error);
       setRecetas([]);
       setCantidadesVentas({});
     } finally {
@@ -148,28 +173,21 @@ export function EquilibriumPage() {
     }
   };
 
-  // Función para cargar costos fijos desde la base de datos
+  // Función para cargar costos fijos desde localStorage
   const cargarCostosFijos = async () => {
     try {
       setLoadingCostos(true);
-      console.log('🔄 Iniciando carga de costos fijos...');
+      console.log('🔄 Cargando costos fijos desde localStorage...');
       
-      // Por ahora usamos un negocioId hardcodeado, pero debería venir del contexto de autenticación
-      const negocioId = 1; // TODO: Obtener del contexto de usuario autenticado
+      // Cargar costos fijos desde localStorage
+      const fixedCostsData = BusinessDataLocalStorageService.getFixedCosts();
+      const totalFixedCosts = BusinessDataLocalStorageService.getTotalFixedCosts();
       
-      const response = await apiService.get(`/api/v1/costos-fijos/total?negocioId=${negocioId}`);
-      console.log('📡 Respuesta costos fijos:', response);
-      
-      // La API devuelve directamente { total: 2500, count: 2, message: "..." }
-      if (response && response.total !== undefined) {
-        console.log('✅ Costos fijos cargados:', response.total);
-        setCostosFijos(response.total);
-      } else {
-        console.log('⚠️ No se encontraron costos fijos');
-        setCostosFijos(0);
-      }
+      setCostosFijos(totalFixedCosts);
+      console.log('✅ Costos fijos cargados desde localStorage:', totalFixedCosts);
+      console.log('📊 Datos de costos fijos:', fixedCostsData);
     } catch (error) {
-      console.error('❌ Error al cargar costos fijos:', error);
+      console.error('❌ Error al cargar costos fijos desde localStorage:', error);
       setCostosFijos(0);
     } finally {
       setLoadingCostos(false);
@@ -331,7 +349,7 @@ export function EquilibriumPage() {
                          </p>
                        </div>
                        <div className="text-right">
-                         <p className="text-2xl font-bold text-blue-600">${item.receta.precio_venta}</p>
+                         <p className="text-2xl font-bold text-blue-600">${item.receta.precio_venta.toFixed(2)}</p>
                          <p className="text-sm text-gray-500">Precio de venta</p>
                        </div>
                      </div>
@@ -417,7 +435,7 @@ export function EquilibriumPage() {
                          <span className="font-medium">Personal requerido:</span> {item.receta.personal_requerido || 'N/A'} personas
                        </div>
                        <div>
-                         <span className="font-medium">Costo variable unitario:</span> ${item.receta.costo_receta}
+                         <span className="font-medium">Costo variable unitario:</span> ${item.receta.costo_receta.toFixed(2)}
                        </div>
                      </div>
                    </div>

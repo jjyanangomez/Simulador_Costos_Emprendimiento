@@ -103,20 +103,7 @@ export function DashboardPage() {
           </p>
         </div>
 
-        {/* Progreso general */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-semibold text-gray-900">Progreso de la Simulación</h2>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span className="text-sm text-gray-600">0 de 6 completados</span>
-            </div>
-          </div>
-          
-          <div className="w-full bg-gray-200 rounded-full h-3">
-            <div className="bg-gradient-to-r from-primary-500 to-secondary-500 h-3 rounded-full transition-all duration-500" style={{ width: '0%' }}></div>
-          </div>
-        </div>
+
 
         {/* Pasos de la simulación */}
         <div className="grid gap-6">

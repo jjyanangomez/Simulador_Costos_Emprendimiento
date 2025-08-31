@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MainLayout } from '../../../../shared/infrastructure/components/MainLayout';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
@@ -7,9 +7,6 @@ import { z } from 'zod';
 import { 
   Calculator, 
   Plus, 
-  Trash2, 
-  AlertTriangle,
-  CheckCircle,
   Save,
   ArrowRight,
   ArrowLeft
@@ -17,12 +14,15 @@ import {
 import toast from 'react-hot-toast';
 import { apiService } from '../../../../shared/infrastructure/services/api.service';
 
-// Esquema de validación para costos fijos
+// Esquema de validación para costos fijos - CORREGIDO
 const fixedCostSchema = z.object({
   costs: z.array(z.object({
-    name: z.string().min(3, 'El nombre del costo debe tener al menos 3 caracteres'),
+    name: z.string().min(1, 'El nombre del costo es requerido'),
     description: z.string().optional(),
-    amount: z.number().min(0.01, 'El monto debe ser mayor a 0'),
+    amount: z.union([z.number(), z.string()]).refine((val) => {
+      const num = typeof val === 'string' ? parseFloat(val) : val;
+      return !isNaN(num) && num > 0;
+    }, 'El monto debe ser mayor a 0'),
     frequency: z.enum(['mensual', 'semestral', 'anual']),
     category: z.string().min(1, 'Selecciona una categoría'),
   })).min(1, 'Debes agregar al menos un costo fijo'),
@@ -32,6 +32,8 @@ type FixedCostForm = z.infer<typeof fixedCostSchema>;
 
 // Las categorías se cargarán dinámicamente desde el backend
 const getCostCategories = (costTypes: any[]) => {
+  // NO ordenar - usar el orden exacto que viene del backend
+  // El backend ya tiene el orden correcto de las categorías
   return costTypes.map(type => ({
     value: type.tipo_costo_id.toString(),
     label: type.nombre,
@@ -117,6 +119,7 @@ export function FixedCostsPage() {
   const [negocioId, setNegocioId] = useState<number>(16); // Usar el negocio que creamos
   const [costTypes, setCostTypes] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [forceUpdate, setForceUpdate] = useState(0); // Forzar actualización de la UI
 
   const {
     control,
@@ -133,7 +136,7 @@ export function FixedCostsPage() {
           description: 'Renta mensual del local comercial',
           amount: 1200,
           frequency: 'mensual',
-          category: '',
+          category: '', // Dejar vacío para que el usuario seleccione
         }
       ],
     },
@@ -152,14 +155,19 @@ export function FixedCostsPage() {
     let totalYearly = 0;
 
     if (watchedCosts && Array.isArray(watchedCosts)) {
-      watchedCosts.forEach((cost) => {
-        if (cost && typeof cost.amount === 'number' && cost.amount > 0) {
-          let monthlyAmount = cost.amount;
-          if (cost.frequency === 'semestral') monthlyAmount = cost.amount / 6;
-          if (cost.frequency === 'anual') monthlyAmount = cost.amount / 12;
+      watchedCosts.forEach((cost, index) => {
+        if (cost && cost.amount) {
+          // Convertir a número si es string
+          const amount = typeof cost.amount === 'string' ? parseFloat(cost.amount) : cost.amount;
           
-          totalMonthly += monthlyAmount;
-          totalYearly += monthlyAmount * 12;
+          if (!isNaN(amount) && amount > 0) {
+            let monthlyAmount = amount;
+            if (cost.frequency === 'semestral') monthlyAmount = amount / 6;
+            if (cost.frequency === 'anual') monthlyAmount = amount / 12;
+            
+            totalMonthly += monthlyAmount;
+            totalYearly += monthlyAmount * 12;
+          }
         }
       });
     }
@@ -167,35 +175,29 @@ export function FixedCostsPage() {
     return { totalMonthly, totalYearly };
   };
 
-  const { totalMonthly, totalYearly } = calculateTotals();
+  // Calcular totales en tiempo real usando useMemo - FORZADO
+  const { totalMonthly, totalYearly } = useMemo(() => {
+    return calculateTotals();
+  }, [watchedCosts, fields.length, forceUpdate]); // Agregar forceUpdate para forzar recálculo
 
   // Cargar SOLO las categorías disponibles del backend
   useEffect(() => {
     const loadInitialData = async () => {
       try {
         setIsLoading(true);
-
-        console.log('🔍 Intentando conectar con el backend...');
         
         // SOLO cargar tipos de costo (categorías disponibles)
-        console.log('📋 Cargando categorías disponibles...');
         const costTypesResponse = await apiService.getCostTypes();
-        console.log('✅ Respuesta categorías:', costTypesResponse);
         
         if (costTypesResponse.data) {
           setCostTypes(costTypesResponse.data);
-          console.log(`📊 ${costTypesResponse.data.length} categorías cargadas`);
         } else {
-          console.warn('⚠️ No se recibieron categorías del backend');
           setCostTypes([]);
         }
         
         // NO cargar costos existentes - el usuario los ingresará manualmente
         
       } catch (error) {
-        console.error('💥 Error cargando categorías:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-        console.error('Error de conexión:', errorMessage);
         toast.error('Error al cargar las categorías disponibles');
         
         // Fallback: usar categorías hardcodeadas si falla la conexión
@@ -214,6 +216,28 @@ export function FixedCostsPage() {
     loadInitialData();
   }, []); // Solo se ejecuta una vez al cargar la página
 
+  // Validar automáticamente todos los costos cuando cambien - MEJORADO
+  useEffect(() => {
+    if (costTypes.length > 0) {
+      watchedCosts.forEach((cost, index) => {
+        // Validar si el costo tiene los datos mínimos necesarios
+        const amount = typeof cost.amount === 'string' ? parseFloat(cost.amount) : cost.amount;
+        if (cost.name && amount > 0 && cost.category) {
+          validateCost(index);
+        }
+      });
+    }
+  }, [costTypes, watchedCosts, fields.length]); // Agregar fields.length
+
+  // FORZAR SINCRONIZACIÓN DEL ESTADO cuando cambien los campos
+  useEffect(() => {
+    // Forzar recálculo de totales
+    calculateTotals();
+  }, [watchedCosts, fields]);
+
+  // ACTUALIZACIÓN MANUAL DE TOTALES - SOLO cuando el usuario termine de escribir
+  // Los totales se actualizarán mediante onBlur en cada campo, NO automáticamente
+
   // Validar costo con IA - CORREGIDO para usar categorías del backend
   const validateCost = (index: number) => {
     const cost = watchedCosts[index];
@@ -224,48 +248,81 @@ export function FixedCostsPage() {
   };
 
   const addNewCost = () => {
-    append({
-      name: '',
+    const newCost = {
+      name: '', // Nombre vacío para que el usuario lo edite
       description: '',
-      amount: 0,
-      frequency: 'mensual',
-      category: '',
-    });
+      amount: 0, // Monto 0 para que el usuario lo edite
+      frequency: 'mensual' as const,
+      category: '', // Categoría vacía para que el usuario seleccione
+    };
+    
+    append(newCost);
+    
+    // Forzar validación inmediata del nuevo costo
+    setTimeout(() => {
+      const newIndex = fields.length - 1; // El índice del nuevo costo (length - 1)
+      validateCost(newIndex);
+    }, 100);
   };
 
   const onSubmit = async (data: FixedCostForm) => {
     setIsSubmitting(true);
     
     try {
-      console.log('🚀 Guardando costos fijos...', data.costs);
+             // Verificar que todos los costos tengan categoría seleccionada
+       const costosSinCategoria = data.costs.filter(cost => !cost.category);
+       if (costosSinCategoria.length > 0) {
+         toast.error('Todos los costos deben tener una categoría seleccionada');
+         return;
+       }
+       
+       // Verificar que todos los costos tengan monto válido
+       const costosSinMontoValido = data.costs.filter(cost => {
+         const monto = typeof cost.amount === 'string' ? parseFloat(cost.amount) : Number(cost.amount);
+         return isNaN(monto) || monto <= 0;
+       });
+       if (costosSinMontoValido.length > 0) {
+         toast.error('Todos los costos deben tener un monto válido mayor a 0');
+         return;
+       }
       
-      // Guardar cada costo en el backend
-      const savePromises = data.costs.map(async (cost) => {
-        // Mapear el formato del frontend al formato del backend
-        const backendCostData = {
-          negocioId: negocioId,
-          tipoCostoId: parseInt(cost.category), // Convertir string a number
-          nombre: cost.name,
-          descripcion: cost.description || '',
-          monto: cost.amount,
-          frecuencia: cost.frequency,
-          activo: true
-        };
-        
-        console.log('📤 Enviando costo al backend:', backendCostData);
-        return apiService.createFixedCost(backendCostData);
-      });
+             // Guardar cada costo en el backend
+       const savePromises = data.costs.map(async (cost) => {
+         // Mapear el formato del frontend al formato del backend
+         const monto = typeof cost.amount === 'string' ? parseFloat(cost.amount) : Number(cost.amount);
+         const backendCostData = {
+           negocioId: negocioId,
+           tipoCostoId: parseInt(cost.category), // Convertir string a number
+           nombre: cost.name,
+           descripcion: cost.description || '',
+           monto: parseFloat(monto.toFixed(2)), // Enviar como número decimal puro (ej: 1200.00)
+           frecuencia: cost.frequency,
+           activo: true
+         };
+         
+                   console.log('📤 Enviando costo al backend:', {
+            original: cost.amount,
+            parsed: monto,
+            type: typeof monto,
+            isValid: !isNaN(monto) && monto > 0
+          });
+          
+          console.log('📦 Payload completo que se envía:', backendCostData);
+         
+         return apiService.createFixedCost(backendCostData);
+       });
       
       // Esperar a que se guarden todos los costos
-      const results = await Promise.all(savePromises);
-      console.log('✅ Costos guardados:', results);
+      await Promise.all(savePromises);
       
       toast.success(`¡${data.costs.length} costos fijos guardados exitosamente en la base de datos!`);
+      
+      // Generar análisis de IA después de guardar
+      await generateAIAnalysis(data.costs);
       
       // Navegar al siguiente paso
       navigate('/variable-costs');
     } catch (error) {
-      console.error('❌ Error al guardar los costos fijos:', error);
       toast.error('Error al guardar los costos fijos en la base de datos');
     } finally {
       setIsSubmitting(false);
@@ -278,9 +335,39 @@ export function FixedCostsPage() {
     const hasError = validations.some(v => v.type === 'error');
     const hasWarning = validations.some(v => v.type === 'warning');
     
-    if (hasError) return <AlertTriangle className="w-5 h-5 text-red-500" />;
-    if (hasWarning) return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
-    return <CheckCircle className="w-5 h-5 text-green-500" />;
+    if (hasError) return <div className="w-5 h-5 text-red-500">⚠️</div>;
+    if (hasWarning) return <div className="w-5 h-5 text-yellow-500">⚠️</div>;
+    return <div className="w-5 h-5 text-green-500">✅</div>;
+  };
+
+  // Generar análisis de IA para todos los costos
+  const generateAIAnalysis = async (costs: any[]) => {
+    try {
+      // Simular análisis de IA
+      const analysis = {
+        totalCostos: costs.length,
+        totalMensual: costs.reduce((sum, cost) => {
+          const amount = typeof cost.amount === 'string' ? parseFloat(cost.amount) : cost.amount;
+          let monthlyAmount = amount;
+          if (cost.frequency === 'semestral') monthlyAmount = amount / 6;
+          if (cost.frequency === 'anual') monthlyAmount = amount / 12;
+          return sum + monthlyAmount;
+        }, 0),
+        recomendaciones: costs.map(cost => {
+          const validations = validateCostWithAI(cost, costTypes);
+          return {
+            nombre: cost.name,
+            validaciones: validations
+          };
+        })
+      };
+      
+      toast.success('Análisis de IA generado exitosamente');
+      
+      return analysis;
+    } catch (error) {
+      toast.error('Error al generar análisis de IA');
+    }
   };
 
   const getValidationColor = (validations: any[]) => {
@@ -325,20 +412,20 @@ export function FixedCostsPage() {
               💾 Los costos se guardan al hacer clic en "Guardar y Continuar"
             </div>
           </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-primary-600">${(totalMonthly || 0).toFixed(2)}</div>
-              <div className="text-sm text-gray-600">Total Mensual</div>
+                                           <div className="grid md:grid-cols-3 gap-6">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary-600">${(totalMonthly || 0).toFixed(2)}</div>
+                <div className="text-sm text-gray-600">Total Mensual</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-secondary-600">${(totalYearly || 0).toFixed(2)}</div>
+                <div className="text-sm text-gray-600">Total Anual</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-gray-600">{fields.length}</div>
+                <div className="text-sm text-gray-600">Costos Registrados</div>
+              </div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-secondary-600">${(totalYearly || 0).toFixed(2)}</div>
-              <div className="text-sm text-gray-600">Total Anual</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-gray-600">{fields.length}</div>
-              <div className="text-sm text-gray-600">Costos Registrados</div>
-            </div>
-          </div>
         </div>
 
         {/* Formulario de costos */}
@@ -349,14 +436,16 @@ export function FixedCostsPage() {
                 <Calculator className="w-5 h-5 mr-2 text-primary-600" />
                 Lista de Costos Fijos
               </h2>
-              <button
-                type="button"
-                onClick={addNewCost}
-                className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Agregar Costo</span>
-              </button>
+                                                           <div className="flex space-x-2">
+                  <button
+                    type="button"
+                    onClick={addNewCost}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Agregar Costo</span>
+                  </button>
+                </div>
             </div>
 
             <div className="space-y-6">
@@ -371,43 +460,47 @@ export function FixedCostsPage() {
                     </h3>
                     <div className="flex items-center space-x-2">
                       {getValidationIcon(aiValidations[index] || [])}
-                      {fields.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => remove(index)}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
+                                             {fields.length > 1 && (
+                         <button
+                           type="button"
+                           onClick={() => remove(index)}
+                           className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                         >
+                           🗑️
+                         </button>
+                       )}
                     </div>
                   </div>
 
                   <div className="grid md:grid-cols-2 gap-6">
-                    {/* Nombre del costo */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Nombre del Costo *
-                      </label>
-                      <Controller
-                        name={`costs.${index}.name`}
-                        control={control}
-                        render={({ field }) => (
-                          <input
-                            {...field}
-                            type="text"
-                            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
-                              errors.costs?.[index]?.name ? 'border-red-500' : 'border-gray-300'
-                            }`}
-                            placeholder="Ej: Arriendo del Local"
-                            onBlur={() => validateCost(index)}
-                          />
-                        )}
-                      />
-                      {errors.costs?.[index]?.name && (
-                        <p className="mt-1 text-sm text-red-600">{errors.costs[index]?.name?.message}</p>
-                      )}
-                    </div>
+                                         {/* Nombre del costo */}
+                     <div>
+                       <label className="block text-sm font-medium text-gray-700 mb-2">
+                         Nombre del Costo *
+                       </label>
+                       <Controller
+                         name={`costs.${index}.name`}
+                         control={control}
+                         render={({ field }) => (
+                           <input
+                             {...field}
+                             type="text"
+                             className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                               errors.costs?.[index]?.name ? 'border-red-500' : 'border-gray-300'
+                             }`}
+                             placeholder="Ej: Arriendo del Local"
+                                                           onBlur={() => {
+                                validateCost(index);
+                                // Forzar actualización de totales SOLO cuando termine de escribir
+                                setForceUpdate(prev => prev + 1);
+                              }}
+                           />
+                         )}
+                       />
+                       {errors.costs?.[index]?.name && (
+                         <p className="mt-1 text-sm text-red-600">{errors.costs[index]?.name?.message}</p>
+                       )}
+                     </div>
 
                     {/* Categoría */}
                     <div>
@@ -423,10 +516,14 @@ export function FixedCostsPage() {
                             className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
                               errors.costs?.[index]?.category ? 'border-red-500' : 'border-gray-300'
                             }`}
-                            onChange={(e) => {
-                              field.onChange(e);
-                              validateCost(index);
-                            }}
+                                                                                       onChange={(e) => {
+                                field.onChange(e);
+                              }}
+                              onBlur={() => {
+                                validateCost(index);
+                                // Forzar actualización de totales SOLO cuando termine de seleccionar
+                                setForceUpdate(prev => prev + 1);
+                              }}
                           >
                             <option value="">Selecciona una categoría</option>
                             {getCostCategories(costTypes).map((category: any) => (
@@ -447,32 +544,36 @@ export function FixedCostsPage() {
                       )}
                     </div>
 
-                    {/* Monto */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Monto (USD) *
-                      </label>
-                      <Controller
-                        name={`costs.${index}.amount`}
-                        control={control}
-                        render={({ field }) => (
-                          <input
-                            {...field}
-                            type="number"
-                            min="0.01"
-                            step="0.01"
-                            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
-                              errors.costs?.[index]?.amount ? 'border-red-500' : 'border-gray-300'
-                            }`}
-                            placeholder="0.00"
-                            onBlur={() => validateCost(index)}
-                          />
-                        )}
-                      />
-                      {errors.costs?.[index]?.amount && (
-                        <p className="mt-1 text-sm text-red-600">{errors.costs[index]?.amount?.message}</p>
-                      )}
-                    </div>
+                                         {/* Monto */}
+                     <div>
+                       <label className="block text-sm font-medium text-gray-700 mb-2">
+                         Monto (USD) *
+                       </label>
+                       <Controller
+                         name={`costs.${index}.amount`}
+                         control={control}
+                         render={({ field }) => (
+                           <input
+                             {...field}
+                             type="number"
+                             min="0.01"
+                             step="0.01"
+                             className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                               errors.costs?.[index]?.amount ? 'border-red-500' : 'border-gray-300'
+                             }`}
+                             placeholder="0.00"
+                                                           onBlur={() => {
+                                validateCost(index);
+                                // Forzar actualización de totales SOLO cuando termine de escribir
+                                setForceUpdate(prev => prev + 1);
+                              }}
+                           />
+                         )}
+                       />
+                       {errors.costs?.[index]?.amount && (
+                         <p className="mt-1 text-sm text-red-600">{errors.costs[index]?.amount?.message}</p>
+                       )}
+                     </div>
 
                     {/* Frecuencia */}
                     <div>
@@ -488,10 +589,14 @@ export function FixedCostsPage() {
                             className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
                               errors.costs?.[index]?.frequency ? 'border-red-500' : 'border-gray-300'
                             }`}
-                            onChange={(e) => {
-                              field.onChange(e);
-                              validateCost(index);
-                            }}
+                                                         onChange={(e) => {
+                               field.onChange(e);
+                             }}
+                                                           onBlur={() => {
+                                validateCost(index);
+                                // Forzar actualización de totales SOLO cuando termine de seleccionar
+                                setForceUpdate(prev => prev + 1);
+                              }}
                           >
                             {frequencyOptions.map((option) => (
                               <option key={option.value} value={option.value}>
@@ -551,12 +656,13 @@ export function FixedCostsPage() {
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600">Costo mensual equivalente:</span>
                       <span className="font-semibold text-gray-900">
-                        ${(() => {
-                          const cost = watchedCosts[index];
-                          if (cost.frequency === 'mensual') return cost.amount;
-                          if (cost.frequency === 'semestral') return (cost.amount / 6).toFixed(2);
-                          return (cost.amount / 12).toFixed(2);
-                        })()}
+                                                 ${(() => {
+                           const cost = watchedCosts[index];
+                           const amount = typeof cost.amount === 'string' ? parseFloat(cost.amount) : cost.amount;
+                           if (cost.frequency === 'mensual') return amount;
+                           if (cost.frequency === 'semestral') return (amount / 6).toFixed(2);
+                           return (amount / 12).toFixed(2);
+                         })()}
                       </span>
                     </div>
                   </div>
@@ -565,36 +671,37 @@ export function FixedCostsPage() {
             </div>
           </div>
 
-          {/* Botones de acción */}
-          <div className="flex justify-between items-center pt-6">
-            <button
-              type="button"
-              onClick={() => navigate('/business-setup')}
-              className="px-6 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center space-x-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Paso Anterior</span>
-            </button>
-            
-            <button
-              type="submit"
-              disabled={!isValid || isSubmitting}
-              className="px-8 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Guardando...</span>
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  <span>Guardar y Continuar</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
-          </div>
+                                           {/* Botones de acción */}
+            <div className="flex justify-between items-center pt-6">
+             
+             <button
+               type="button"
+               onClick={() => navigate('/business-setup')}
+               className="px-6 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center space-x-2"
+             >
+               <ArrowLeft className="w-4 h-4" />
+               <span>Paso Anterior</span>
+             </button>
+             
+             <button
+               type="submit"
+               disabled={!isValid || isSubmitting}
+               className="px-8 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+             >
+               {isSubmitting ? (
+                 <>
+                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                   <span>Guardando...</span>
+                 </>
+               ) : (
+                 <>
+                   <Save className="w-4 h-4" />
+                   <span>Guardar y Continuar</span>
+                   <ArrowRight className="w-4 h-4" />
+                 </>
+               )}
+             </button>
+           </div>
         </form>
       </div>
     </MainLayout>

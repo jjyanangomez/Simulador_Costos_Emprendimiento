@@ -31,7 +31,7 @@ export interface ActualizarPrecioVentaRequest {
 }
 
 export class ProductoPrecioVentaService {
-  private baseUrl = config.api.baseURL;
+  private baseUrl = config.api.apiV1;
 
   /**
    * Obtiene todos los productos con sus precios de venta para un negocio

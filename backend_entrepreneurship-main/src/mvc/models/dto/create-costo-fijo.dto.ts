@@ -1,4 +1,5 @@
-import { IsNotEmpty, IsNumber, IsString, IsOptional, IsDecimal, Min } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, IsOptional, Min } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class CreateCostoFijoDto {
   @IsNotEmpty({ message: 'El ID del negocio es requerido' })
@@ -18,8 +19,13 @@ export class CreateCostoFijoDto {
   descripcion?: string;
 
   @IsNotEmpty({ message: 'El monto es requerido' })
-  @IsDecimal({}, { message: 'El monto debe ser un número decimal válido' })
+  @IsNumber({}, { message: 'El monto debe ser un número válido' })
   @Min(0.01, { message: 'El monto debe ser mayor a 0' })
+  @Transform(({ value }) => {
+    // Asegurar que el valor sea un número válido
+    const num = typeof value === 'string' ? parseFloat(value) : Number(value);
+    return isNaN(num) ? value : num;
+  })
   monto: number;
 
   @IsNotEmpty({ message: 'La frecuencia es requerida' })

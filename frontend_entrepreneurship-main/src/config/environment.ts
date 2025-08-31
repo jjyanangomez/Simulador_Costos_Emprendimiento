@@ -1,8 +1,8 @@
 // Configuración de variables de entorno
 export const config = {
   api: {
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000',
-    apiV1: `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/v1`,
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1',
+    apiV1: import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1',
   },
   app: {
     title: import.meta.env.VITE_APP_NAME || 'Simulador de Emprendimientos',

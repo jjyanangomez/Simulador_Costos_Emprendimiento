@@ -24,7 +24,7 @@ export interface SaveCompleteAnalysisRequest {
 }
 
 export class CompleteAnalysisRepositoryApi {
-  private readonly baseUrl = config.api.baseURL;
+  private readonly baseUrl = config.api.apiV1;
 
   async saveCompleteAnalysis(data: SaveCompleteAnalysisRequest): Promise<CompleteAnalysisResult> {
     try {

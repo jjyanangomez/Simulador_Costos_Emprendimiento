@@ -62,6 +62,21 @@ export class CostosFijosService {
    */
   async createCostoFijo(createCostoFijoDto: CreateCostoFijoDto) {
     try {
+      // 🔍 DEBUG: Log del DTO recibido
+      console.log('🔍 [BACKEND] DTO recibido:', {
+        negocioId: createCostoFijoDto.negocioId,
+        tipoCostoId: createCostoFijoDto.tipoCostoId,
+        nombre: createCostoFijoDto.nombre,
+        descripcion: createCostoFijoDto.descripcion,
+        monto: {
+          value: createCostoFijoDto.monto,
+          type: typeof createCostoFijoDto.monto,
+          isNumber: typeof createCostoFijoDto.monto === 'number',
+          isNaN: isNaN(createCostoFijoDto.monto)
+        },
+        frecuencia: createCostoFijoDto.frecuencia
+      });
+      
       // Verificar que el negocio existe
       const negocio = await this.prisma.negocios.findUnique({
         where: { negocio_id: createCostoFijoDto.negocioId }
@@ -80,6 +95,22 @@ export class CostosFijosService {
         throw new Error('El tipo de costo especificado no existe');
       }
 
+      // 🔍 DEBUG: Log de los datos que se envían a Prisma
+      console.log('🔍 [BACKEND] Datos enviados a Prisma:', {
+        negocio_id: createCostoFijoDto.negocioId,
+        tipo_costo_id: createCostoFijoDto.tipoCostoId,
+        nombre: createCostoFijoDto.nombre,
+        descripcion: createCostoFijoDto.descripcion,
+        monto: {
+          value: createCostoFijoDto.monto,
+          type: typeof createCostoFijoDto.monto,
+          isNumber: typeof createCostoFijoDto.monto === 'number',
+          isNaN: isNaN(createCostoFijoDto.monto)
+        },
+        frecuencia: createCostoFijoDto.frecuencia,
+        activo: true
+      });
+      
       // Crear el costo fijo
       const costo = await this.prisma.costosFijos.create({
         data: {
@@ -99,6 +130,13 @@ export class CostosFijosService {
             }
           }
         }
+      });
+
+      // 🔍 DEBUG: Log de éxito
+      console.log('✅ [BACKEND] Costo fijo creado exitosamente:', {
+        costo_fijo_id: costo.costo_fijo_id,
+        monto_guardado: costo.monto,
+        tipo_monto_guardado: typeof costo.monto
       });
 
       return costo;

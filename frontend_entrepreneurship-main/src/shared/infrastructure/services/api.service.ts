@@ -1,6 +1,6 @@
 import { toast } from 'react-hot-toast';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
 
 export interface ApiResponse<T = any> {
   message: string;
@@ -97,7 +97,11 @@ class ApiService {
   }
 
   async getFixedCosts(negocioId: number): Promise<ApiResponse> {
-    return this.request(`/costos-fijos?negocioId=${negocioId}`);
+    return this.request(`/costos-fijos/${negocioId}`);
+  }
+
+  async getCostTypes(): Promise<ApiResponse> {
+    return this.request('/costos-fijos/tipos/lista');
   }
 
   async updateFixedCost(id: number, costData: any): Promise<ApiResponse> {
@@ -111,10 +115,6 @@ class ApiService {
     return this.request(`/costos-fijos/${id}`, {
       method: 'DELETE',
     });
-  }
-
-  async getCostTypes(): Promise<ApiResponse> {
-    return this.request('/costos-fijos/tipos/lista');
   }
 
   // Métodos para productos

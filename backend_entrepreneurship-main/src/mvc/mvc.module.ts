@@ -23,6 +23,7 @@ import { CategoriaActivoFijoController } from './controllers/categoria-activo-fi
 import { ProductosController, RecetasController } from './controllers/productos.controller';
 import { AnalisisController } from './controllers/analisis.controller';
 import { ProductoPrecioVentaController } from '../simulator/bussiness/controllers/producto-precio-venta.controller';
+import { ItemsInversionController } from './controllers/items-inversion.controller';
 
 // Services
 import { UserService } from './services/user.service';
@@ -43,6 +44,7 @@ import { CategoriaActivoFijoService } from './services/categoria-activo-fijo.ser
 import { ProductosService } from './services/productos.service';
 import { AnalisisService } from './services/analisis.service';
 import { ProductoPrecioVentaService } from '../simulator/bussiness/services/producto-precio-venta.service';
+import { ItemsInversionService } from './services/items-inversion.service';
 
 // Mappers
 import { AnalisisIAMapper } from './models/mappers/analysis_ai.mapper';
@@ -83,6 +85,7 @@ import { CategoriaActivoFijoMapper } from './models/mappers/categoria-activo-fij
     RecetasController,
     AnalisisController,
     ProductoPrecioVentaController,
+    ItemsInversionController,
   ],
   providers: [
     AppService,
@@ -104,6 +107,7 @@ import { CategoriaActivoFijoMapper } from './models/mappers/categoria-activo-fij
     ProductosService,
     AnalisisService,
     ProductoPrecioVentaService,
+    ItemsInversionService,
     // Mappers
     AnalisisIAMapper,
     UserMapper,

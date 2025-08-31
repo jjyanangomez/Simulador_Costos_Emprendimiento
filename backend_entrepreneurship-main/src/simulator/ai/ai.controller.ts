@@ -207,4 +207,39 @@ export class AiController {
       );
     }
   }
+
+  @Post('analyze-business-setup')
+  @ApiOperation({ summary: 'Análisis completo de configuración de negocio con IA' })
+  @ApiResponse({ status: 200, description: 'Análisis de negocio completado.' })
+  @ApiResponse({ status: 400, description: 'Datos inválidos.' })
+  @ApiResponse({ status: 500, description: 'Error interno del servidor.' })
+  async analyzeBusinessSetup(@Body() businessSetupDto: {
+    businessName: string;
+    businessCategory: string;
+    sector: string;
+    exactLocation?: string;
+    businessSize: string;
+    capacity: number;
+    financingType: 'personal' | 'prestamo' | 'mixto';
+    investmentItems: Array<{ description: string; amount: number; quantity?: number }>;
+    ownCapital: number;
+    loanCapital?: number;
+    interestRate?: number;
+  }) {
+    try {
+      console.log('🏢 [BACKEND-AI] Iniciando análisis de configuración de negocio...');
+      console.log('📥 [BACKEND-AI] Datos recibidos:', JSON.stringify(businessSetupDto, null, 2));
+      
+      const result = await this.analysisService.analyzeBusinessSetup(businessSetupDto);
+      
+      console.log('✅ [BACKEND-AI] Análisis de negocio completado:', result);
+      return result;
+    } catch (error) {
+      console.error('💥 [BACKEND-AI] Error en análisis de negocio:', error);
+      throw new HttpException(
+        'Error al analizar la configuración del negocio',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }

@@ -16,6 +16,7 @@ import toast from 'react-hot-toast';
 import { BusinessAnalysisModal } from './components/BusinessAnalysisModal';
 import { BusinessAnalysisService } from '../../../../shared/services/BusinessAnalysisService';
 import { saveBusinessName } from '../../../../shared/utils/businessNameStorage';
+import { BusinessSetupApiService, type BusinessSetupData } from '../services/BusinessSetupApiService';
 import '../../../../shared/utils/consoleLogger'; // Importar para exponer funciones globalmente
 
 // Esquema de validación
@@ -98,13 +99,85 @@ export function BusinessSetupPage() {
     return isNaN(numValue) ? '0.00' : numValue.toFixed(2);
   };
   
-  // Función para generar análisis de IA
+  // Función para generar análisis de IA usando el backend con Google Gemini
   const generateAIAnalysis = async (data: BusinessSetupForm) => {
     setIsAnalyzing(true);
     
     try {
-      // Simular análisis de IA con delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      console.log('🤖 Iniciando análisis de IA con Google Gemini (Backend)...');
+
+      // Convertir datos del formulario al formato esperado por la API
+      const apiData: BusinessSetupData = {
+        businessName: data.businessName,
+        businessCategory: data.businessCategory,
+        sector: data.sector,
+        exactLocation: data.exactLocation,
+        businessSize: data.businessSize,
+        capacity: data.capacity,
+        financingType: data.financingType,
+        investmentItems: data.investmentItems.map(item => ({
+          description: item.description,
+          amount: item.amount,
+          quantity: 1 // Valor por defecto
+        })),
+        ownCapital: data.ownCapital,
+        loanCapital: data.loanCapital,
+        interestRate: data.interestRate
+      };
+
+      console.log('📤 Enviando datos al backend con Google Gemini:', apiData);
+
+      try {
+        // 🚀 LLAMADA REAL AL BACKEND CON GOOGLE GEMINI
+        const backendResult = await BusinessSetupApiService.analyzeWithBackendAI(apiData);
+        
+        console.log('✅ 🤖 RESPUESTA DE GOOGLE GEMINI RECIBIDA:', backendResult);
+
+        // Convertir respuesta del backend al formato local
+        const analysis: AIAnalysis = {
+          isViable: backendResult.isViable,
+          score: backendResult.score,
+          riskLevel: backendResult.riskLevel,
+          financialHealth: backendResult.financialHealth,
+          recommendations: backendResult.recommendations,
+          warnings: backendResult.warnings,
+          businessInsights: backendResult.businessInsights
+        };
+
+        // Imprimir análisis completo en consola
+        console.log('\n🤖 ================== ANÁLISIS DE GOOGLE GEMINI (BACKEND) ==================');
+        console.log('📊 DATOS DEL NEGOCIO:', apiData);
+        console.log('🎯 RESULTADO DEL ANÁLISIS DE GOOGLE GEMINI:', analysis);
+        console.log('🧠 ANÁLISIS GENERADO POR: Google Gemini 1.5 Flash');
+        console.log('================== FIN DEL ANÁLISIS DE GOOGLE GEMINI ==================\n');
+
+        setAiAnalysis(analysis);
+        setShowAnalysisModal(true);
+        
+        // Guardar datos usando el servicio centralizado
+        const success = BusinessAnalysisService.saveBusinessAnalysis(data, analysis);
+        if (success) {
+          console.log('✅ Datos de Google Gemini guardados exitosamente');
+          
+          // Guardar también el nombre del negocio por separado para acceso rápido
+          const nameSuccess = saveBusinessName(data.businessName);
+          if (nameSuccess) {
+            console.log('✅ Nombre del negocio guardado para acceso rápido');
+          }
+        }
+
+        toast.success('🤖 Análisis completado con Google Gemini');
+        return; // Salir aquí si el backend funciona
+
+      } catch (backendError) {
+        console.error('❌ Error al conectar con Google Gemini (Backend):', backendError);
+        toast.error('⚠️ Backend no disponible, usando análisis local...');
+        
+        // 🔄 FALLBACK: Análisis local cuando el backend falla
+        console.log('🔄 Usando análisis local como fallback...');
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // Continuar con análisis local
       
       // ===== ANÁLISIS INTELIGENTE REAL BASADO EN DATOS =====
       let score = 40; // Puntuación base más estricta
@@ -468,7 +541,10 @@ export function BusinessSetupPage() {
         'Fecha de Análisis': new Date().toLocaleString('es-ES')
       });
       
-      console.log('================== FIN DEL ANÁLISIS DE IA ==================\n');
+      console.log('================== FIN DEL ANÁLISIS DE IA (FALLBACK) ==================\n');
+      
+      setAiAnalysis(analysis);
+      setShowAnalysisModal(true);
       
       // Guardar datos usando el servicio centralizado
       const success = BusinessAnalysisService.saveBusinessAnalysis(data, analysis);
@@ -481,6 +557,8 @@ export function BusinessSetupPage() {
           console.log('✅ Nombre del negocio guardado para acceso rápido');
         }
       }
+      
+      } // Cierre del catch del backend
       
     } catch (error) {
       console.error('Error en análisis de IA:', error);

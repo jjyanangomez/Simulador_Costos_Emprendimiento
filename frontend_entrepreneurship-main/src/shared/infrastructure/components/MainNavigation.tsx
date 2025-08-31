@@ -19,8 +19,8 @@ const navigationItems = [
   { path: '/fixed-costs', label: 'Costos Fijos', icon: Calculator },
   { path: '/variable-costs', label: 'Costos Variables', icon: Package },
   { path: '/precio-venta', label: 'Precio de Venta', icon: DollarSign },
-  { path: '/profitability-analysis', label: 'Análisis', icon: TrendingUp },
   { path: '/equilibrium', label: 'Equilibrio', icon: Target },
+  { path: '/profitability-analysis', label: 'Análisis', icon: TrendingUp },
   { path: '/results', label: 'Resultados', icon: BarChart3 },
 ];
 

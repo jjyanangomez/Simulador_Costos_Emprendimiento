@@ -15,7 +15,7 @@ import {
   ShoppingBag,
   Edit
 } from 'lucide-react';
-import { SeccionPrecioVenta } from './components/SeccionPrecioVenta';
+
 import toast from 'react-hot-toast';
 
 import type { Ingredient, Product, AdditionalCost } from '../../domain/types';
@@ -296,8 +296,7 @@ export function VariableCostsPage() {
           onCostsChange={handleAdditionalCostsChange}
         />
 
-        {/* 🆕 NUEVA SECCIÓN: Precio de Venta */}
-        <SeccionPrecioVenta negocioId={negocioId} />
+
 
         {/* Botones de acción */}
         <div className="flex justify-between items-center pt-6">

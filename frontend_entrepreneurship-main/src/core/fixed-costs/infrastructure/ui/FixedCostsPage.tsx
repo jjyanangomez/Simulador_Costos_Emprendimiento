@@ -12,11 +12,15 @@ import {
   CheckCircle,
   Save,
   ArrowRight,
-  ArrowLeft
+  ArrowLeft,
+  X,
+  BarChart3
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useCategorias } from '../hooks/useCategorias';
 import { CategoriaSelector } from '../components/CategoriaSelector';
+import { LocalStorageService } from '../../../../shared/services/localStorage.service';
+import type { CostosFijosData } from '../../../../shared/services/localStorage.service';
 
 // Esquema de validación para costos fijos
 const fixedCostSchema = z.object({
@@ -26,7 +30,7 @@ const fixedCostSchema = z.object({
     amount: z.number().min(0.01, 'El monto debe ser mayor a 0'),
     frequency: z.enum(['mensual', 'semestral', 'anual']),
     category: z.string().min(1, 'Selecciona una categoría'),
-  })).min(1, 'Debes agregar al menos un costo fijo'),
+  })).min(0), // Permite lista vacía - el usuario puede guardar sin costos si lo desea
 });
 
 type FixedCostForm = z.infer<typeof fixedCostSchema>;
@@ -52,19 +56,19 @@ const validateCostWithAI = (cost: any) => {
   if (monthlyAmount < 50) {
     validations.push({
       type: 'warning',
-      message: 'El costo mensual parece estar por debajo del rango típico del mercado',
+      message: `El costo ${cost.frequency === 'mensual' ? 'mensual' : 'mensual equivalente'} parece estar por debajo del rango típico del mercado`,
       severity: 'low'
     });
   } else if (monthlyAmount > 10000) {
     validations.push({
       type: 'error',
-      message: 'El costo mensual está significativamente por encima del rango típico del mercado',
+      message: `El costo ${cost.frequency === 'mensual' ? 'mensual' : 'mensual equivalente'} está significativamente por encima del rango típico del mercado`,
       severity: 'high'
     });
   } else {
     validations.push({
       type: 'success',
-      message: 'El costo está dentro del rango esperado del mercado',
+      message: `El costo ${cost.frequency === 'mensual' ? 'mensual' : 'mensual equivalente'} está dentro del rango esperado del mercado`,
       severity: 'none'
     });
   }
@@ -85,29 +89,22 @@ export function FixedCostsPage() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [aiValidations, setAiValidations] = useState<Record<number, any[]>>({});
+  const [showResultsModal, setShowResultsModal] = useState(false);
   
   // Hook para cargar categorías desde el backend
   const { categorias, loading: categoriasLoading, error: categoriasError } = useCategorias();
 
-  const {
-    control,
-    handleSubmit,
-    watch,
-    formState: { errors, isValid },
-  } = useForm<FixedCostForm>({
-    resolver: zodResolver(fixedCostSchema),
-    defaultValues: {
-      costs: [
-        {
-          name: 'Arriendo del Local',
-          description: 'Renta mensual del local comercial',
-          amount: 1200,
-          frequency: 'mensual',
-          category: '',
-        }
-      ],
-    },
-  });
+     const {
+     control,
+     handleSubmit,
+     watch,
+     formState: { errors, isValid },
+   } = useForm<FixedCostForm>({
+     resolver: zodResolver(fixedCostSchema),
+     defaultValues: {
+       costs: [], // Lista vacía - el usuario agregará costos según necesite
+     },
+   });
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -120,6 +117,11 @@ export function FixedCostsPage() {
   const calculateTotals = () => {
     let totalMonthly = 0;
     let totalYearly = 0;
+    let costBreakdown = {
+      mensual: 0,
+      semestral: 0,
+      anual: 0
+    };
 
     watchedCosts.forEach((cost) => {
       // Asegurar que amount sea un número válido
@@ -135,12 +137,15 @@ export function FixedCostsPage() {
       
       totalMonthly += monthlyAmount;
       totalYearly += monthlyAmount * 12;
+      
+      // Acumular por frecuencia para el desglose
+      costBreakdown[cost.frequency as keyof typeof costBreakdown] += amount;
     });
 
-    return { totalMonthly, totalYearly };
+    return { totalMonthly, totalYearly, costBreakdown };
   };
 
-  const { totalMonthly, totalYearly } = calculateTotals();
+  const { totalMonthly, totalYearly, costBreakdown } = calculateTotals();
 
   // Limpiar validaciones cuando cambien los costos
   useEffect(() => {
@@ -221,18 +226,347 @@ export function FixedCostsPage() {
     return 'border-green-200 bg-green-50';
   };
 
+  // Función para guardar costos fijos en localStorage
+  const guardarCostosFijos = async (): Promise<void> => {
+    try {
+      const dataToSave: CostosFijosData = {
+        costos: watchedCosts,
+        totalMonthly,
+        totalYearly,
+        costBreakdown,
+        fechaGuardado: new Date().toISOString(),
+        negocioId: LocalStorageService.obtenerNegocioActual() || undefined
+      };
+
+      // Guardar costos fijos en localStorage
+      LocalStorageService.guardarCostosFijos(dataToSave);
+      
+      // 🏢 COMBINAR INFORMACIÓN DEL NEGOCIO CON COSTOS FIJOS
+      console.log('🚀 [FIXED_COSTS] ===== COMBINANDO DATOS DEL NEGOCIO =====');
+      
+      try {
+        // Importar dinámicamente la utilidad de combinación
+        const { generateCompleteBusinessData, printCompleteBusinessData } = await import('../../../../shared/utils/businessDataCombiner');
+        
+        // Generar datos completos combinados
+        const completeBusinessData = generateCompleteBusinessData();
+        
+        // Imprimir en consola el JSON completo
+        console.log('📊 [FIXED_COSTS] DATOS COMPLETOS DEL NEGOCIO (JSON):');
+        console.log(JSON.stringify(completeBusinessData, null, 2));
+        
+        // También imprimir con formato bonito usando la utilidad
+        printCompleteBusinessData(true);
+        
+        console.log('✅ [FIXED_COSTS] Datos del negocio combinados y mostrados en consola exitosamente');
+        
+      } catch (importError) {
+        console.warn('⚠️ [FIXED_COSTS] No se pudo importar la utilidad de combinación:', importError);
+        console.log('📊 [FIXED_COSTS] Mostrando datos básicos combinados:');
+        
+        // Fallback: mostrar datos básicos combinados
+        const basicCombinedData = {
+          negocio: {
+            nombre: 'No disponible (verificar businessNameStorage)',
+            fechaCombinacion: new Date().toISOString()
+          },
+          costosFijos: dataToSave,
+          metadata: {
+            tipo: 'Combinación básica',
+            timestamp: Date.now(),
+            version: '1.0.0'
+          }
+        };
+        
+        console.log('📊 [FIXED_COSTS] DATOS BÁSICOS COMBINADOS:');
+        console.log(JSON.stringify(basicCombinedData, null, 2));
+      }
+      
+      toast.success('¡Costos fijos guardados exitosamente!');
+      
+      // Cerrar el modal después de guardar
+      setShowResultsModal(false);
+      
+      // Opcional: Navegar al siguiente paso
+      // navigate('/variable-costs');
+      
+    } catch (error) {
+      console.error('Error al guardar costos fijos:', error);
+      toast.error('Error al guardar los costos fijos');
+    }
+  };
+
+  // Componente del modal de resultados
+  const ResultsModal = () => {
+    if (!showResultsModal) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          {/* Header del modal */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <div className="flex items-center space-x-3">
+              <BarChart3 className="w-8 h-8 text-primary-600" />
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Resultados de Costos Fijos</h2>
+                <p className="text-gray-600">Resumen completo de costos por frecuencia</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowResultsModal(false)}
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          {/* Contenido del modal */}
+          <div className="p-6 space-y-6">
+            {/* Resumen general */}
+            <div className="bg-gradient-to-r from-primary-50 to-secondary-50 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Resumen General</h3>
+              <div className="grid md:grid-cols-3 gap-6">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-primary-600">
+                    ${formatCurrency(totalMonthly)}
+                  </div>
+                  <div className="text-sm text-gray-600">Total Mensual</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-secondary-600">
+                    ${formatCurrency(totalYearly)}
+                  </div>
+                  <div className="text-sm text-gray-600">Total Anual</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-gray-600">{fields.length}</div>
+                  <div className="text-sm text-gray-600">
+                    {fields.length === 0 ? 'Sin costos' : 'Costos Registrados'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Desglose por frecuencia */}
+            <div className="bg-white border border-gray-200 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Desglose por Frecuencia de Pago</h3>
+              <div className="grid md:grid-cols-3 gap-4">
+                {/* Costos Mensuales */}
+                <div className={`p-4 rounded-lg transition-all duration-200 ${
+                  costBreakdown.mensual > 0 
+                    ? 'bg-blue-50 border border-blue-200' 
+                    : 'bg-gray-50 border border-gray-200'
+                }`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className={`text-sm font-medium ${
+                      costBreakdown.mensual > 0 ? 'text-blue-800' : 'text-gray-500'
+                    }`}>
+                      Costos Mensuales
+                    </div>
+                    <div className={`w-3 h-3 rounded-full ${
+                      costBreakdown.mensual > 0 ? 'bg-blue-500' : 'bg-gray-300'
+                    }`}></div>
+                  </div>
+                  <div className={`text-2xl font-bold ${
+                    costBreakdown.mensual > 0 ? 'text-blue-600' : 'text-gray-400'
+                  }`}>
+                    ${formatCurrency(costBreakdown.mensual)}
+                  </div>
+                  <div className={`text-xs ${
+                    costBreakdown.mensual > 0 ? 'text-blue-600' : 'text-gray-400'
+                  }`}>
+                    {costBreakdown.mensual > 0 ? 'Se pagan cada mes' : 'Sin costos mensuales'}
+                  </div>
+                </div>
+
+                {/* Costos Semestrales */}
+                <div className={`p-4 rounded-lg transition-all duration-200 ${
+                  costBreakdown.semestral > 0 
+                    ? 'bg-green-50 border border-green-200' 
+                    : 'bg-gray-50 border border-gray-200'
+                }`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className={`text-sm font-medium ${
+                      costBreakdown.semestral > 0 ? 'text-green-800' : 'text-gray-500'
+                    }`}>
+                      Costos Semestrales
+                    </div>
+                    <div className={`w-3 h-3 rounded-full ${
+                      costBreakdown.semestral > 0 ? 'bg-green-500' : 'bg-gray-300'
+                    }`}></div>
+                  </div>
+                  <div className={`text-2xl font-bold ${
+                    costBreakdown.semestral > 0 ? 'text-green-600' : 'text-gray-400'
+                  }`}>
+                    ${formatCurrency(costBreakdown.semestral)}
+                  </div>
+                  <div className={`text-xs ${
+                    costBreakdown.semestral > 0 ? 'text-green-600' : 'text-gray-400'
+                  }`}>
+                    {costBreakdown.semestral > 0 ? 'Se pagan cada 6 meses' : 'Sin costos semestrales'}
+                  </div>
+                </div>
+
+                {/* Costos Anuales */}
+                <div className={`p-4 rounded-lg transition-all duration-200 ${
+                  costBreakdown.anual > 0 
+                    ? 'bg-purple-50 border border-purple-200' 
+                    : 'bg-gray-50 border border-gray-200'
+                }`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className={`text-sm font-medium ${
+                      costBreakdown.anual > 0 ? 'text-purple-800' : 'text-gray-500'
+                    }`}>
+                      Costos Anuales
+                    </div>
+                    <div className={`w-3 h-3 rounded-full ${
+                      costBreakdown.anual > 0 ? 'bg-purple-500' : 'bg-gray-300'
+                    }`}></div>
+                  </div>
+                  <div className={`text-2xl font-bold ${
+                    costBreakdown.anual > 0 ? 'text-purple-600' : 'text-gray-400'
+                  }`}>
+                    ${formatCurrency(costBreakdown.anual)}
+                  </div>
+                  <div className={`text-xs ${
+                    costBreakdown.anual > 0 ? 'text-purple-600' : 'text-gray-400'
+                  }`}>
+                    {costBreakdown.anual > 0 ? 'Se pagan cada año' : 'Sin costos anuales'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Lista detallada de costos */}
+            {fields.length > 0 && (
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Lista Detallada de Costos</h3>
+                <div className="space-y-4">
+                  {fields.map((field, index) => {
+                    const cost = watchedCosts[index];
+                    if (!cost) return null;
+                    
+                    return (
+                      <div key={field.id} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <h4 className="font-semibold text-gray-900">{cost.name || `Costo #${index + 1}`}</h4>
+                            {cost.description && (
+                              <p className="text-sm text-gray-600 mt-1">{cost.description}</p>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg font-bold text-gray-900">
+                              ${formatCurrency(cost.amount)}
+                            </div>
+                            <div className={`text-xs px-2 py-1 rounded-full ${
+                              cost.frequency === 'mensual' ? 'bg-blue-100 text-blue-800' :
+                              cost.frequency === 'semestral' ? 'bg-green-100 text-green-800' :
+                              'bg-purple-100 text-purple-800'
+                            }`}>
+                              {cost.frequency === 'mensual' ? 'Mensual' :
+                               cost.frequency === 'semestral' ? 'Semestral' : 'Anual'}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Información adicional del costo */}
+                        <div className="grid md:grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-gray-600">Categoría:</span>
+                            <span className="ml-2 font-medium text-gray-900">
+                              {cost.category || 'No seleccionada'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Costo mensual equivalente:</span>
+                            <span className="ml-2 font-medium text-gray-900">
+                              ${(() => {
+                                if (cost.frequency === 'mensual') return formatCurrency(cost.amount);
+                                if (cost.frequency === 'semestral') return formatCurrency(cost.amount / 6);
+                                return formatCurrency(cost.amount / 12);
+                              })()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Mensaje cuando no hay costos */}
+            {fields.length === 0 && (
+              <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <Calculator className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  No hay costos fijos registrados
+                </h3>
+                <p className="text-gray-600">
+                  Agrega costos fijos para ver el resumen detallado y poder guardarlos
+                </p>
+              </div>
+            )}
+
+            {/* Indicador de estado para guardado */}
+            {fields.length > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center space-x-2 text-blue-800">
+                  <CheckCircle className="w-5 h-5" />
+                  <span className="text-sm font-medium">
+                    {fields.length} costo{fields.length !== 1 ? 's' : ''} listo{fields.length !== 1 ? 's' : ''} para guardar
+                  </span>
+                </div>
+                <p className="text-xs text-blue-600 mt-1">
+                  Los datos se almacenarán localmente y estarán disponibles para análisis en toda la aplicación
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Footer del modal */}
+          <div className="flex justify-between items-center p-6 border-t border-gray-200 bg-gray-50">
+            <div className="text-sm text-gray-600">
+              Los datos se guardarán localmente para análisis posterior
+            </div>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowResultsModal(false)}
+                className="px-6 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={guardarCostosFijos}
+                disabled={fields.length === 0}
+                className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+              >
+                <Save className="w-4 h-4" />
+                <span>Guardar y Analizar</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <MainLayout>
+      {/* Modal de resultados */}
+      <ResultsModal />
+      
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Header */}
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">
             Costos Fijos del Negocio
           </h1>
-          <p className="text-lg text-gray-600">
-            Ingresa todos los costos fijos mensuales de tu negocio. 
-            La IA validará que estén dentro de rangos razonables del mercado.
-          </p>
+                     <p className="text-lg text-gray-600">
+             Agrega los costos fijos de tu negocio según la frecuencia de pago. 
+             La IA validará que estén dentro de rangos razonables del mercado.
+           </p>
           
           {/* Estado de carga de categorías */}
           {categoriasLoading && (
@@ -258,7 +592,7 @@ export function FixedCostsPage() {
         {/* Resumen de costos */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Resumen de Costos</h2>
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-4 gap-6">
             <div className="text-center">
               <div className="text-2xl font-bold text-primary-600">
                 ${formatCurrency(totalMonthly)}
@@ -271,11 +605,134 @@ export function FixedCostsPage() {
               </div>
               <div className="text-sm text-gray-600">Total Anual</div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-gray-600">{fields.length}</div>
-              <div className="text-sm text-gray-600">Costos Registrados</div>
-            </div>
+                         <div className="text-center">
+               <div className="text-2xl font-bold text-gray-600">{fields.length}</div>
+               <div className="text-sm text-gray-600">
+                 {fields.length === 0 ? 'Sin costos' : 'Costos Registrados'}
+               </div>
+             </div>
+                         <div className="text-center">
+               <div className="text-lg font-semibold text-gray-700">
+                 {(() => {
+                   const frecuencias = [];
+                   if (costBreakdown.mensual > 0) frecuencias.push('Mensual');
+                   if (costBreakdown.semestral > 0) frecuencias.push('Semestral');
+                   if (costBreakdown.anual > 0) frecuencias.push('Anual');
+                   return frecuencias.length > 0 ? frecuencias.join(', ') : 'Sin costos';
+                 })()}
+               </div>
+               <div className="text-sm text-gray-600">
+                 {(() => {
+                   const totalFrecuencias = [costBreakdown.mensual > 0, costBreakdown.semestral > 0, costBreakdown.anual > 0].filter(Boolean).length;
+                   return `${totalFrecuencias} de 3 frecuencias`;
+                 })()}
+               </div>
+             </div>
           </div>
+          
+                     {/* Desglose detallado por frecuencia */}
+           <div className="mt-6 pt-6 border-t border-gray-200">
+             <h3 className="text-lg font-medium text-gray-900 mb-3">Desglose por Frecuencia de Pago</h3>
+             <div className="grid md:grid-cols-3 gap-4">
+               {/* Costos Mensuales - Siempre visible */}
+               <div className={`p-4 rounded-lg transition-all duration-200 ${
+                 costBreakdown.mensual > 0 
+                   ? 'bg-blue-50 border border-blue-200' 
+                   : 'bg-gray-50 border border-gray-200'
+               }`}>
+                 <div className="flex items-center justify-between mb-2">
+                   <div className={`text-sm font-medium ${
+                     costBreakdown.mensual > 0 ? 'text-blue-800' : 'text-gray-500'
+                   }`}>
+                     Costos Mensuales
+                   </div>
+                   <div className={`w-3 h-3 rounded-full ${
+                     costBreakdown.mensual > 0 ? 'bg-blue-500' : 'bg-gray-300'
+                   }`}></div>
+                 </div>
+                 <div className={`text-2xl font-bold ${
+                   costBreakdown.mensual > 0 ? 'text-blue-600' : 'text-gray-400'
+                 }`}>
+                   ${formatCurrency(costBreakdown.mensual)}
+                 </div>
+                 <div className={`text-xs ${
+                   costBreakdown.mensual > 0 ? 'text-blue-600' : 'text-gray-400'
+                 }`}>
+                   {costBreakdown.mensual > 0 ? 'Se pagan cada mes' : 'Sin costos mensuales'}
+                 </div>
+               </div>
+
+               {/* Costos Semestrales - Siempre visible */}
+               <div className={`p-4 rounded-lg transition-all duration-200 ${
+                 costBreakdown.semestral > 0 
+                   ? 'bg-green-50 border border-green-200' 
+                   : 'bg-gray-50 border border-gray-200'
+               }`}>
+                 <div className="flex items-center justify-between mb-2">
+                   <div className={`text-sm font-medium ${
+                     costBreakdown.semestral > 0 ? 'text-green-800' : 'text-gray-500'
+                   }`}>
+                     Costos Semestrales
+                   </div>
+                   <div className={`w-3 h-3 rounded-full ${
+                     costBreakdown.semestral > 0 ? 'bg-green-500' : 'bg-gray-300'
+                   }`}></div>
+                 </div>
+                 <div className={`text-2xl font-bold ${
+                   costBreakdown.semestral > 0 ? 'text-green-600' : 'text-gray-400'
+                 }`}>
+                   ${formatCurrency(costBreakdown.semestral)}
+                 </div>
+                 <div className={`text-xs ${
+                   costBreakdown.semestral > 0 ? 'text-green-600' : 'text-gray-400'
+                 }`}>
+                   {costBreakdown.semestral > 0 ? 'Se pagan cada 6 meses' : 'Sin costos semestrales'}
+                 </div>
+               </div>
+
+               {/* Costos Anuales - Siempre visible */}
+               <div className={`p-4 rounded-lg transition-all duration-200 ${
+                 costBreakdown.anual > 0 
+                   ? 'bg-purple-50 border border-purple-200' 
+                   : 'bg-gray-50 border border-gray-200'
+               }`}>
+                 <div className="flex items-center justify-between mb-2">
+                   <div className={`text-sm font-medium ${
+                     costBreakdown.anual > 0 ? 'text-purple-800' : 'text-gray-500'
+                   }`}>
+                     Costos Anuales
+                   </div>
+                   <div className={`w-3 h-3 rounded-full ${
+                     costBreakdown.anual > 0 ? 'bg-purple-500' : 'bg-gray-300'
+                   }`}></div>
+                 </div>
+                 <div className={`text-2xl font-bold ${
+                   costBreakdown.anual > 0 ? 'text-purple-600' : 'text-gray-400'
+                 }`}>
+                   ${formatCurrency(costBreakdown.anual)}
+                 </div>
+                 <div className={`text-xs ${
+                   costBreakdown.anual > 0 ? 'text-purple-600' : 'text-gray-400'
+                 }`}>
+                   {costBreakdown.anual > 0 ? 'Se pagan cada año' : 'Sin costos anuales'}
+                 </div>
+               </div>
+             </div>
+             
+             {/* Leyenda explicativa */}
+             <div className="mt-4 pt-4 border-t border-gray-200">
+               <div className="flex items-center justify-center space-x-6 text-xs text-gray-500">
+                 <div className="flex items-center space-x-2">
+                   <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                   <span>Con costos</span>
+                 </div>
+                 <div className="flex items-center space-x-2">
+                   <div className="w-3 h-3 rounded-full bg-gray-300"></div>
+                   <span>Sin costos</span>
+                 </div>
+               </div>
+             </div>
+           </div>
         </div>
 
         {/* Formulario de costos */}
@@ -296,12 +753,33 @@ export function FixedCostsPage() {
               </button>
             </div>
 
-            <div className="space-y-6">
-              {fields.map((field, index) => (
-                <div
-                  key={field.id}
-                  className={`border-2 rounded-lg p-6 transition-all duration-200 ${getValidationColor(aiValidations[index] || [])}`}
-                >
+                         <div className="space-y-6">
+               {/* Mensaje cuando no hay costos */}
+               {fields.length === 0 && (
+                 <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                   <Calculator className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                   <h3 className="text-lg font-medium text-gray-900 mb-2">
+                     No hay costos fijos agregados
+                   </h3>
+                   <p className="text-gray-600 mb-4">
+                     Haz clic en "Agregar Costo" para comenzar a registrar los costos fijos de tu negocio
+                   </p>
+                   <button
+                     type="button"
+                     onClick={addNewCost}
+                     className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2 mx-auto"
+                   >
+                     <Plus className="w-4 h-4" />
+                     <span>Agregar Primer Costo</span>
+                   </button>
+                 </div>
+               )}
+               
+               {fields.map((field, index) => (
+                 <div
+                   key={field.id}
+                   className={`border-2 rounded-lg p-6 transition-all duration-200 ${getValidationColor(aiValidations[index] || [])}`}
+                 >
                   <div className="flex items-start justify-between mb-4">
                     <h3 className="text-lg font-medium text-gray-900">
                       Costo #{index + 1}
@@ -485,20 +963,56 @@ export function FixedCostsPage() {
                     </div>
                   )}
 
-                  {/* Resumen del costo */}
-                  <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">Costo mensual equivalente:</span>
-                      <span className="font-semibold text-gray-900">
-                        ${(() => {
-                          const cost = watchedCosts[index];
-                          if (cost.frequency === 'mensual') return cost.amount;
-                          if (cost.frequency === 'semestral') return (cost.amount / 6).toFixed(2);
-                          return (cost.amount / 12).toFixed(2);
-                        })()}
-                      </span>
-                    </div>
-                  </div>
+                                     {/* Resumen del costo */}
+                   <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                     <div className="flex items-center justify-between text-sm">
+                       <span className="text-gray-600">
+                         {(() => {
+                           const cost = watchedCosts[index];
+                           switch (cost.frequency) {
+                             case 'mensual':
+                               return 'Costo mensual:';
+                             case 'semestral':
+                               return 'Costo mensual equivalente:';
+                             case 'anual':
+                               return 'Costo mensual equivalente:';
+                             default:
+                               return 'Costo mensual equivalente:';
+                           }
+                         })()}
+                       </span>
+                       <span className="font-semibold text-gray-900">
+                         ${(() => {
+                           const cost = watchedCosts[index];
+                           if (cost.frequency === 'mensual') return cost.amount;
+                           if (cost.frequency === 'semestral') return (cost.amount / 6).toFixed(2);
+                           return (cost.amount / 12).toFixed(2);
+                         })()}
+                       </span>
+                     </div>
+                     
+                     {/* Mostrar también el costo total según la frecuencia */}
+                     {watchedCosts[index]?.frequency !== 'mensual' && (
+                       <div className="flex items-center justify-between text-sm mt-2 pt-2 border-t border-gray-200">
+                         <span className="text-gray-600">
+                           {(() => {
+                             const cost = watchedCosts[index];
+                             switch (cost.frequency) {
+                               case 'semestral':
+                                 return 'Costo semestral total:';
+                               case 'anual':
+                                 return 'Costo anual total:';
+                               default:
+                                 return 'Costo total:';
+                             }
+                           })()}
+                         </span>
+                         <span className="font-semibold text-gray-900">
+                           ${watchedCosts[index]?.amount || '0.00'}
+                         </span>
+                       </div>
+                     )}
+                   </div>
                 </div>
               ))}
             </div>
@@ -515,24 +1029,14 @@ export function FixedCostsPage() {
               <span>Paso Anterior</span>
             </button>
             
-            <button
-              type="submit"
-              disabled={!isValid || isSubmitting}
-              className="px-8 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Guardando...</span>
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  <span>Guardar y Continuar</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
+                                      <button
+               type="button"
+               onClick={() => setShowResultsModal(true)}
+               className="px-8 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2"
+             >
+               <BarChart3 className="w-4 h-4" />
+               <span>Ver Resultados</span>
+             </button>
           </div>
         </form>
       </div>

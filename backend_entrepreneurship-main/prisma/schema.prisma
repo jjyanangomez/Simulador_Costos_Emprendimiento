@@ -50,6 +50,7 @@ model Negocios {
   Analisis_IA                  Analisis_IA[]
   CostosFijos                  CostosFijos[]
   CostosVariables              CostosVariables[]
+  ItemsInversion               ItemsInversion[]
   NegocioProgresoPaso          NegocioProgresoPaso[]
   TamanosNegocio               TamanosNegocio                 @relation(fields: [id_tamano], references: [id_tamano], onDelete: NoAction, onUpdate: NoAction)
   Sectores                     Sectores                       @relation(fields: [sector_id], references: [sector_id], onDelete: NoAction, onUpdate: NoAction)
@@ -178,6 +179,21 @@ model TiposCosto {
   es_fijo         Boolean           @default(true)
   CostosFijos     CostosFijos[]
   CostosVariables CostosVariables[]
+}
+
+model CategoriaActivoFijo {
+  categoria_id     Int        @id @default(autoincrement())
+  nombre          String     @db.VarChar(100) @unique
+  descripcion     String?
+  icono           String?    @db.VarChar(100)
+  color           String?    @db.VarChar(7)  // Formato hexadecimal #RRGGBB
+  activo          Boolean    @default(true)
+  fecha_creacion  DateTime   @default(now()) @db.Timestamp(6)
+  
+  // Relaciones
+  CostosFijos     CostosFijos[]
+  
+  @@map("CategoriaActivoFijo")
 }
 
 model CostosFijos {
@@ -428,4 +444,22 @@ model Resultados_Punto_Equilibrio {
 
   @@unique([negocio_id, modulo_id, analisis_id], map: "unique_resultado_punto_equilibrio")
   @@map("Resultados_Punto_Equilibrio")
+}
+
+model ItemsInversion {
+  item_id               Int       @id @default(autoincrement())
+  negocio_id            Int
+  nombre                String    @db.VarChar(200)
+  descripcion           String?
+  precio                Decimal   @db.Decimal(15, 2)
+  cantidad              Int       @default(1)
+  categoria             String?   @db.VarChar(100)
+  prioridad             String?   @db.VarChar(50)
+  fecha_compra_estimada DateTime?
+  activo                Boolean   @default(true)
+  fecha_creacion        DateTime  @default(now()) @db.Timestamp(6)
+  fecha_actualizacion   DateTime  @default(now()) @db.Timestamp(6)
+  Negocios              Negocios  @relation(fields: [negocio_id], references: [negocio_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("ItemsInversion")
 }

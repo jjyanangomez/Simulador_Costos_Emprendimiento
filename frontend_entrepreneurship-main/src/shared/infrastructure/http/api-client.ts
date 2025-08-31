@@ -1,6 +1,6 @@
 import { config } from '../../../config/environment';
 
-const API_BASE_URL = config.api.baseURL;
+const API_BASE_URL = config.api.apiV1; // Cambiar a apiV1 que incluye /api/v1
 
 export interface ApiResponse<T> {
   data: T;

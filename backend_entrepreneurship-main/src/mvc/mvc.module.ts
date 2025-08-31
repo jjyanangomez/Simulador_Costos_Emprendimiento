@@ -3,7 +3,6 @@ import { AppController } from '../app.controller';
 import { AppService } from '../app.service';
 import { PrismaModule } from '../shared/database/prisma.module';
 
-
 // Controllers
 import { UserController } from './controllers/user.controller';
 import { BusinessController } from './controllers/business.controller';
@@ -22,8 +21,14 @@ import { CostosFijosController } from './controllers/costos-fijos.controller';
 import { CostosVariablesController } from './controllers/costos-variables.controller';
 import { ProductosController } from './controllers/productos.controller';
 import { RecetasController } from './controllers/productos.controller';
+import { CategoriaActivoFijoController } from './controllers/categoria-activo-fijo.controller';
+import {
+  ProductosController,
+  RecetasController,
+} from './controllers/productos.controller';
 import { AnalisisController } from './controllers/analisis.controller';
 import { ProductoPrecioVentaController } from '../simulator/bussiness/controllers/producto-precio-venta.controller';
+import { ItemsInversionController } from './controllers/items-inversion.controller';
 
 // Services
 import { UserService } from './services/user.service';
@@ -40,10 +45,11 @@ import { CompleteAnalysisResultService } from './services/complete-analysis-resu
 import { AnalisisIAService } from './services/analysis_ai.service';
 import { AiService } from './services/ai.service';
 import { CostosFijosService } from './services/costos-fijos.service';
-import { CostosVariablesService } from './services/costos-variables.service';
+import { CategoriaActivoFijoService } from './services/categoria-activo-fijo.service';
 import { ProductosService } from './services/productos.service';
 import { AnalisisService } from './services/analisis.service';
 import { ProductoPrecioVentaService } from '../simulator/bussiness/services/producto-precio-venta.service';
+import { ItemsInversionService } from './services/items-inversion.service';
 
 // Mappers
 import { AnalisisIAMapper } from './models/mappers/analysis_ai.mapper';
@@ -59,6 +65,7 @@ import { FinancialRecordMapper } from './models/mappers/financial-record.mapper'
 import { ValidationResultMapper } from './models/mappers/validation-result.mapper';
 import { CompleteAnalysisResultMapper } from './models/mappers/complete-analysis-result.mapper';
 import { ModuloMapper } from './models/mappers/modulo.mapper';
+import { CategoriaActivoFijoMapper } from './models/mappers/categoria-activo-fijo.mapper';
 
 @Module({
   imports: [PrismaModule],
@@ -78,11 +85,12 @@ import { ModuloMapper } from './models/mappers/modulo.mapper';
     AnalisisIAController,
     AiController,
     CostosFijosController,
-    CostosVariablesController,
+    CategoriaActivoFijoController,
     ProductosController,
     RecetasController,
     AnalisisController,
     ProductoPrecioVentaController,
+    ItemsInversionController,
   ],
   providers: [
     AppService,
@@ -100,10 +108,11 @@ import { ModuloMapper } from './models/mappers/modulo.mapper';
     AnalisisIAService,
     AiService,
     CostosFijosService,
-    CostosVariablesService,
+    CategoriaActivoFijoService,
     ProductosService,
     AnalisisService,
     ProductoPrecioVentaService,
+    ItemsInversionService,
     // Mappers
     AnalisisIAMapper,
     UserMapper,
@@ -118,6 +127,7 @@ import { ModuloMapper } from './models/mappers/modulo.mapper';
     ValidationResultMapper,
     CompleteAnalysisResultMapper,
     ModuloMapper,
+    CategoriaActivoFijoMapper,
   ],
 })
 export class MvcModule {}

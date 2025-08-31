@@ -22,10 +22,7 @@ import { CostosVariablesController } from './controllers/costos-variables.contro
 import { ProductosController } from './controllers/productos.controller';
 import { RecetasController } from './controllers/productos.controller';
 import { CategoriaActivoFijoController } from './controllers/categoria-activo-fijo.controller';
-import {
-  ProductosController,
-  RecetasController,
-} from './controllers/productos.controller';
+
 import { AnalisisController } from './controllers/analisis.controller';
 import { ProductoPrecioVentaController } from '../simulator/bussiness/controllers/producto-precio-venta.controller';
 import { ItemsInversionController } from './controllers/items-inversion.controller';

@@ -1,6 +1,7 @@
 import { toast } from 'react-hot-toast';
+import { config } from '../../../config/environment';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+const API_BASE_URL = config.api.apiV1;
 
 export interface ApiResponse<T = any> {
   message: string;

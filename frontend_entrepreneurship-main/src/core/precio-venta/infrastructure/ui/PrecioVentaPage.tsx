@@ -67,7 +67,7 @@ export function PrecioVentaPage() {
       setLoading(true);
       setError(null);
       
-      const response = await apiService.get(`/api/v1/productos-precio-venta/${negocioId}/analisis-completo`);
+              const response = await apiService.get(`/productos-precio-venta/${negocioId}/analisis-completo`);
       
       if (response.data) {
         setProductos(response.data.productos);
@@ -103,7 +103,7 @@ export function PrecioVentaPage() {
       }
 
       const response = await apiService.put(
-        `/api/v1/productos-precio-venta/${negocioId}/producto/${productoId}`,
+        `/productos-precio-venta/${negocioId}/producto/${productoId}`,
         { precio_venta_cliente: nuevoPrecio }
       );
 

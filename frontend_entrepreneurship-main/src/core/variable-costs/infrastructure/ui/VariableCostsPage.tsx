@@ -15,6 +15,7 @@ import {
   ShoppingBag,
   Edit
 } from 'lucide-react';
+
 import toast from 'react-hot-toast';
 
 import type { Ingredient, Product, AdditionalCost } from '../../domain/types';
@@ -28,6 +29,9 @@ export function VariableCostsPage() {
   const [additionalCosts, setAdditionalCosts] = useState<AdditionalCost[]>([]);
   const [businessType, setBusinessType] = useState('restaurante'); // Por defecto, se puede obtener del contexto
   const [showSummary, setShowSummary] = useState(false);
+  const [aiValidations, setAiValidations] = useState<Record<number, any[]>>({});
+  // ID del negocio (en un caso real esto vendría del contexto o props)
+  const negocioId = 1; // Temporal - debería venir del contexto de autenticación
 
   // Función helper para calcular el costo de un producto
   const calculateProductCost = (product: Product): number => {
@@ -291,6 +295,8 @@ export function VariableCostsPage() {
           businessType={businessType}
           onCostsChange={handleAdditionalCostsChange}
         />
+
+
 
         {/* Botones de acción */}
         <div className="flex justify-between items-center pt-6">

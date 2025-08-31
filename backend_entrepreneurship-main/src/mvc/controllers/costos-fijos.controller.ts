@@ -56,6 +56,23 @@ export class CostosFijosController {
     }
   }
 
+  @Get('total')
+  @ApiOperation({ summary: 'Obtener el total de costos fijos de un negocio' })
+  @ApiQuery({ name: 'negocioId', description: 'ID del negocio', type: Number })
+  @ApiResponse({ status: 200, description: 'Total de costos fijos obtenido' })
+  async getTotal(@Query('negocioId', ParseIntPipe) negocioId: number) {
+    try {
+      const result = await this.costosFijosService.getTotalByNegocioId(negocioId);
+      return result;
+    } catch (error) {
+      console.error('💥 [BACKEND] Error al obtener total de costos fijos:', error);
+      throw new HttpException(
+        'Error al obtener el total de costos fijos',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Obtener un costo fijo por ID' })
   @ApiParam({ name: 'id', description: 'ID del costo fijo', type: Number })

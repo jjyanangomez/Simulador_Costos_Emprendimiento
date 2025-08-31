@@ -180,6 +180,21 @@ model TiposCosto {
   CostosVariables CostosVariables[]
 }
 
+model CategoriaActivoFijo {
+  categoria_id     Int        @id @default(autoincrement())
+  nombre          String     @db.VarChar(100) @unique
+  descripcion     String?
+  icono           String?    @db.VarChar(100)
+  color           String?    @db.VarChar(7)  // Formato hexadecimal #RRGGBB
+  activo          Boolean    @default(true)
+  fecha_creacion  DateTime   @default(now()) @db.Timestamp(6)
+  
+  // Relaciones
+  CostosFijos     CostosFijos[]
+  
+  @@map("CategoriaActivoFijo")
+}
+
 model CostosFijos {
   costo_fijo_id Int        @id @default(autoincrement())
   negocio_id    Int

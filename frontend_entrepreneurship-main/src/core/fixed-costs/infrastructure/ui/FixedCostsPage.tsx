@@ -9,9 +9,16 @@ import {
   Plus, 
   Save,
   ArrowRight,
-  ArrowLeft
+  ArrowLeft,
+  X,
+  BarChart3
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useCategorias } from '../hooks/useCategorias';
+import { CategoriaSelector } from '../components/CategoriaSelector';
+import { LocalStorageService } from '../../../../shared/services/localStorage.service';
+import type { CostosFijosData } from '../../../../shared/services/localStorage.service';
+import { AiAnalysisBackendService } from '../../../../shared/services/aiAnalysisBackend.service';
 import { apiService } from '../../../../shared/infrastructure/services/api.service';
 
 // Esquema de validación para costos fijos - CORREGIDO
@@ -25,7 +32,7 @@ const fixedCostSchema = z.object({
     }, 'El monto debe ser mayor a 0'),
     frequency: z.enum(['mensual', 'semestral', 'anual']),
     category: z.string().min(1, 'Selecciona una categoría'),
-  })).min(1, 'Debes agregar al menos un costo fijo'),
+  })).min(0), // Permite lista vacía - el usuario puede guardar sin costos si lo desea
 });
 
 type FixedCostForm = z.infer<typeof fixedCostSchema>;
@@ -112,6 +119,15 @@ const validateCostWithAI = (cost: any, costTypes: any[]) => {
   return validations;
 };
 
+// Función de utilidad para formatear números de manera segura
+const formatCurrency = (value: number | string | undefined): string => {
+  const numValue = Number(value);
+  if (!Number.isFinite(numValue) || numValue < 0) {
+    return '0.00';
+  }
+  return numValue.toFixed(2);
+};
+
 export function FixedCostsPage() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -120,6 +136,7 @@ export function FixedCostsPage() {
   const [costTypes, setCostTypes] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(0); // Forzar actualización de la UI
+  const [showResultsModal, setShowResultsModal] = useState(false);
 
   const {
     control,
@@ -153,6 +170,11 @@ export function FixedCostsPage() {
   const calculateTotals = () => {
     let totalMonthly = 0;
     let totalYearly = 0;
+    let costBreakdown = {
+      mensual: 0,
+      semestral: 0,
+      anual: 0
+    };
 
     if (watchedCosts && Array.isArray(watchedCosts)) {
       watchedCosts.forEach((cost, index) => {
@@ -167,18 +189,36 @@ export function FixedCostsPage() {
             
             totalMonthly += monthlyAmount;
             totalYearly += monthlyAmount * 12;
+            
+            // Acumular por frecuencia para el desglose
+            costBreakdown[cost.frequency as keyof typeof costBreakdown] += amount;
           }
         }
       });
     }
 
-    return { totalMonthly, totalYearly };
+    return { totalMonthly, totalYearly, costBreakdown };
   };
 
   // Calcular totales en tiempo real usando useMemo - FORZADO
-  const { totalMonthly, totalYearly } = useMemo(() => {
+  const { totalMonthly, totalYearly, costBreakdown } = useMemo(() => {
     return calculateTotals();
   }, [watchedCosts, fields.length, forceUpdate]); // Agregar forceUpdate para forzar recálculo
+
+  // Limpiar validaciones cuando cambien los costos
+  useEffect(() => {
+    // Limpiar validaciones de costos que ya no existen
+    const currentIndexes = Object.keys(watchedCosts).map(Number);
+    setAiValidations(prev => {
+      const newValidations: Record<number, any[]> = {};
+      currentIndexes.forEach(index => {
+        if (prev[index]) {
+          newValidations[index] = prev[index];
+        }
+      });
+      return newValidations;
+    });
+  }, [watchedCosts.length]);
 
   // Cargar SOLO las categorías disponibles del backend
   useEffect(() => {
@@ -381,6 +421,7 @@ export function FixedCostsPage() {
     return 'border-green-200 bg-green-50';
   };
 
+
   return (
     <MainLayout>
       <div className="max-w-6xl mx-auto space-y-8">
@@ -389,6 +430,7 @@ export function FixedCostsPage() {
           <h1 className="text-3xl font-bold text-gray-900 mb-4">
             Costos Fijos del Negocio
           </h1>
+
           <p className="text-lg text-gray-600">
             Ingresa todos los costos fijos mensuales de tu negocio. 
             Selecciona una categoría y la IA validará que estén dentro de rangos razonables del mercado.
@@ -412,20 +454,124 @@ export function FixedCostsPage() {
               💾 Los costos se guardan al hacer clic en "Guardar y Continuar"
             </div>
           </div>
-                                           <div className="grid md:grid-cols-3 gap-6">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary-600">${(totalMonthly || 0).toFixed(2)}</div>
-                <div className="text-sm text-gray-600">Total Mensual</div>
+                                                     <div className="grid md:grid-cols-3 gap-6">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-primary-600">${(totalMonthly || 0).toFixed(2)}</div>
+              <div className="text-sm text-gray-600">Total Mensual</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-secondary-600">${(totalYearly || 0).toFixed(2)}</div>
+              <div className="text-sm text-gray-600">Total Anual</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-gray-600">{fields.length}</div>
+              <div className="text-sm text-gray-600">Costos Registrados</div>
+            </div>
+          </div>
+          
+          {/* Desglose detallado por frecuencia */}
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900 mb-3">Desglose por Frecuencia de Pago</h3>
+            <div className="grid md:grid-cols-3 gap-4">
+              {/* Costos Mensuales - Siempre visible */}
+              <div className={`p-4 rounded-lg transition-all duration-200 ${
+                costBreakdown.mensual > 0 
+                  ? 'bg-blue-50 border border-blue-200' 
+                  : 'bg-gray-50 border border-gray-200'
+              }`}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className={`text-sm font-medium ${
+                    costBreakdown.mensual > 0 ? 'text-blue-800' : 'text-gray-500'
+                  }`}>
+                    Costos Mensuales
+                  </div>
+                  <div className={`w-3 h-3 rounded-full ${
+                    costBreakdown.mensual > 0 ? 'bg-blue-500' : 'bg-gray-300'
+                  }`}></div>
+                </div>
+                <div className={`text-2xl font-bold ${
+                  costBreakdown.mensual > 0 ? 'text-blue-600' : 'text-gray-400'
+                }`}>
+                  ${formatCurrency(costBreakdown.mensual)}
+                </div>
+                <div className={`text-xs ${
+                  costBreakdown.mensual > 0 ? 'text-blue-600' : 'text-gray-400'
+                }`}>
+                  {costBreakdown.mensual > 0 ? 'Se pagan cada mes' : 'Sin costos mensuales'}
+                </div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-secondary-600">${(totalYearly || 0).toFixed(2)}</div>
-                <div className="text-sm text-gray-600">Total Anual</div>
+
+              {/* Costos Semestrales - Siempre visible */}
+              <div className={`p-4 rounded-lg transition-all duration-200 ${
+                costBreakdown.semestral > 0 
+                  ? 'bg-green-50 border border-green-200' 
+                  : 'bg-gray-50 border border-gray-200'
+              }`}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className={`text-sm font-medium ${
+                    costBreakdown.semestral > 0 ? 'text-green-800' : 'text-gray-500'
+                  }`}>
+                    Costos Semestrales
+                  </div>
+                  <div className={`w-3 h-3 rounded-full ${
+                    costBreakdown.semestral > 0 ? 'bg-green-500' : 'bg-gray-300'
+                  }`}></div>
+                </div>
+                <div className={`text-2xl font-bold ${
+                  costBreakdown.semestral > 0 ? 'text-green-600' : 'text-gray-400'
+                }`}>
+                  ${formatCurrency(costBreakdown.semestral)}
+                </div>
+                <div className={`text-xs ${
+                  costBreakdown.semestral > 0 ? 'text-green-600' : 'text-gray-400'
+                }`}>
+                  {costBreakdown.semestral > 0 ? 'Se pagan cada 6 meses' : 'Sin costos semestrales'}
+                </div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-gray-600">{fields.length}</div>
-                <div className="text-sm text-gray-600">Costos Registrados</div>
+
+              {/* Costos Anuales - Siempre visible */}
+              <div className={`p-4 rounded-lg transition-all duration-200 ${
+                costBreakdown.anual > 0 
+                  ? 'bg-purple-50 border border-purple-200' 
+                  : 'bg-gray-300'
+              }`}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className={`text-sm font-medium ${
+                    costBreakdown.anual > 0 ? 'text-purple-800' : 'text-gray-500'
+                  }`}>
+                    Costos Anuales
+                  </div>
+                  <div className={`w-3 h-3 rounded-full ${
+                    costBreakdown.anual > 0 ? 'bg-purple-500' : 'bg-gray-300'
+                  }`}></div>
+                </div>
+                <div className={`text-2xl font-bold ${
+                  costBreakdown.anual > 0 ? 'text-purple-600' : 'text-gray-400'
+                }`}>
+                  ${formatCurrency(costBreakdown.anual)}
+                </div>
+                <div className={`text-xs ${
+                  costBreakdown.anual > 0 ? 'text-purple-600' : 'text-gray-400'
+                }`}>
+                  {costBreakdown.anual > 0 ? 'Se pagan cada año' : 'Sin costos anuales'}
+                </div>
               </div>
             </div>
+            
+            {/* Leyenda explicativa */}
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="flex items-center justify-center space-x-6 text-xs text-gray-500">
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                  <span>Con costos</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 rounded-full bg-gray-300"></div>
+                  <span>Sin costos</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Formulario de costos */}
@@ -448,12 +594,33 @@ export function FixedCostsPage() {
                 </div>
             </div>
 
-            <div className="space-y-6">
-              {fields.map((field, index) => (
-                <div
-                  key={field.id}
-                  className={`border-2 rounded-lg p-6 transition-all duration-200 ${getValidationColor(aiValidations[index] || [])}`}
-                >
+                         <div className="space-y-6">
+               {/* Mensaje cuando no hay costos */}
+               {fields.length === 0 && (
+                 <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                   <Calculator className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                   <h3 className="text-lg font-medium text-gray-900 mb-2">
+                     No hay costos fijos agregados
+                   </h3>
+                   <p className="text-gray-600 mb-4">
+                     Haz clic en "Agregar Costo" para comenzar a registrar los costos fijos de tu negocio
+                   </p>
+                   <button
+                     type="button"
+                     onClick={addNewCost}
+                     className="px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2 mx-auto"
+                   >
+                     <Plus className="w-4 h-4" />
+                     <span>Agregar Primer Costo</span>
+                   </button>
+                 </div>
+               )}
+               
+               {fields.map((field, index) => (
+                 <div
+                   key={field.id}
+                   className={`border-2 rounded-lg p-6 transition-all duration-200 ${getValidationColor(aiValidations[index] || [])}`}
+                 >
                   <div className="flex items-start justify-between mb-4">
                     <h3 className="text-lg font-medium text-gray-900">
                       Costo #{index + 1}
@@ -544,36 +711,43 @@ export function FixedCostsPage() {
                       )}
                     </div>
 
-                                         {/* Monto */}
-                     <div>
-                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                         Monto (USD) *
-                       </label>
-                       <Controller
-                         name={`costs.${index}.amount`}
-                         control={control}
-                         render={({ field }) => (
-                           <input
-                             {...field}
-                             type="number"
-                             min="0.01"
-                             step="0.01"
-                             className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
-                               errors.costs?.[index]?.amount ? 'border-red-500' : 'border-gray-300'
-                             }`}
-                             placeholder="0.00"
-                                                           onBlur={() => {
+                      {/* Monto */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Monto (USD) *
+                        </label>
+                        <Controller
+                          name={`costs.${index}.amount`}
+                          control={control}
+                          render={({ field }) => (
+                            <input
+                              {...field}
+                              type="number"
+                              min="0.01"
+                              step="0.01"
+                              value={field.value || ''}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                // Convertir a número o mantener string vacío para validación
+                                const numValue = value === '' ? '' : Number(value);
+                                field.onChange(numValue);
+                              }}
+                              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                                errors.costs?.[index]?.amount ? 'border-red-500' : 'border-gray-300'
+                              }`}
+                              placeholder="0.00"
+                              onBlur={() => {
                                 validateCost(index);
                                 // Forzar actualización de totales SOLO cuando termine de escribir
                                 setForceUpdate(prev => prev + 1);
                               }}
-                           />
-                         )}
-                       />
-                       {errors.costs?.[index]?.amount && (
-                         <p className="mt-1 text-sm text-red-600">{errors.costs[index]?.amount?.message}</p>
-                       )}
-                     </div>
+                            />
+                          )}
+                        />
+                        {errors.costs?.[index]?.amount && (
+                          <p className="mt-1 text-sm text-red-600">{errors.costs[index]?.amount?.message}</p>
+                        )}
+                      </div>
 
                     {/* Frecuencia */}
                     <div>
@@ -654,54 +828,89 @@ export function FixedCostsPage() {
                   {/* Resumen del costo */}
                   <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">Costo mensual equivalente:</span>
+                      <span className="text-gray-600">
+                        {(() => {
+                          const cost = watchedCosts[index];
+                          switch (cost.frequency) {
+                            case 'mensual':
+                              return 'Costo mensual:';
+                            case 'semestral':
+                              return 'Costo mensual equivalente:';
+                            case 'anual':
+                              return 'Costo mensual equivalente:';
+                            default:
+                              return 'Costo mensual equivalente:';
+                          }
+                        })()}
+                      </span>
                       <span className="font-semibold text-gray-900">
-                                                 ${(() => {
-                           const cost = watchedCosts[index];
-                           const amount = typeof cost.amount === 'string' ? parseFloat(cost.amount) : cost.amount;
-                           if (cost.frequency === 'mensual') return amount;
-                           if (cost.frequency === 'semestral') return (amount / 6).toFixed(2);
-                           return (amount / 12).toFixed(2);
-                         })()}
+                        ${(() => {
+                          const cost = watchedCosts[index];
+                          const amount = typeof cost.amount === 'string' ? parseFloat(cost.amount) : cost.amount;
+                          if (cost.frequency === 'mensual') return amount;
+                          if (cost.frequency === 'semestral') return (amount / 6).toFixed(2);
+                          return (amount / 12).toFixed(2);
+                        })()}
                       </span>
                     </div>
+                    
+                    {/* Mostrar también el costo total según la frecuencia */}
+                    {watchedCosts[index]?.frequency !== 'mensual' && (
+                      <div className="flex items-center justify-between text-sm mt-2 pt-2 border-t border-gray-200">
+                        <span className="text-gray-600">
+                          {(() => {
+                            const cost = watchedCosts[index];
+                            switch (cost.frequency) {
+                              case 'semestral':
+                                return 'Costo semestral total:';
+                              case 'anual':
+                                return 'Costo anual total:';
+                              default:
+                                return 'Costo total:';
+                            }
+                          })()}
+                        </span>
+                        <span className="font-semibold text-gray-900">
+                          ${watchedCosts[index]?.amount || '0.00'}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-                                           {/* Botones de acción */}
-            <div className="flex justify-between items-center pt-6">
-             
-             <button
-               type="button"
-               onClick={() => navigate('/business-setup')}
-               className="px-6 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center space-x-2"
-             >
-               <ArrowLeft className="w-4 h-4" />
-               <span>Paso Anterior</span>
-             </button>
-             
-             <button
-               type="submit"
-               disabled={!isValid || isSubmitting}
-               className="px-8 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
-             >
-               {isSubmitting ? (
-                 <>
-                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                   <span>Guardando...</span>
-                 </>
-               ) : (
-                 <>
-                   <Save className="w-4 h-4" />
-                   <span>Guardar y Continuar</span>
-                   <ArrowRight className="w-4 h-4" />
-                 </>
-               )}
-             </button>
-           </div>
+          {/* Botones de acción */}
+          <div className="flex justify-between items-center pt-6">
+            <button
+              type="button"
+              onClick={() => navigate('/business-setup')}
+              className="px-6 py-3 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center space-x-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Paso Anterior</span>
+            </button>
+            
+            <button
+              type="submit"
+              disabled={!isValid || isSubmitting}
+              className="px-8 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Guardando...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  <span>Guardar y Continuar</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </div>
         </form>
       </div>
     </MainLayout>

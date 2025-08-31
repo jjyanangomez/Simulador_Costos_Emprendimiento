@@ -34,7 +34,7 @@ class ApiService {
       },
       ...options,
     };
-
+    console.log('URL:', url);
     try {
       const response = await fetch(url, defaultOptions);
       
@@ -229,7 +229,7 @@ class ApiService {
     return this.request('/tamanos-negocio');
   }
 
-  // Método público para peticiones GET
+  // Método genérico para peticiones GET
   async get<T = any>(endpoint: string): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: 'GET',

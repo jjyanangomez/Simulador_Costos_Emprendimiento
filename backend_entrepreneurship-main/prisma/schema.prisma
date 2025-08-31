@@ -215,6 +215,7 @@ model Recetas {
   personal_requerido   Int?               // Cantidad de personas
   costos_adicionales   Decimal?           @db.Decimal(10, 2)
   precio_venta         Decimal            @db.Decimal(10, 2)
+  costo_receta         Decimal            @db.Decimal(10, 2)  // Costo total de la receta
   
   // Relaciones
   Productos            Productos          @relation(fields: [producto_id], references: [producto_id], onDelete: NoAction, onUpdate: NoAction)

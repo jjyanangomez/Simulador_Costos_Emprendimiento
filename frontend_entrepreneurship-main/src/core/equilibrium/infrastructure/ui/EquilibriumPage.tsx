@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { MainLayout } from '../../../../shared/infrastructure/components/MainLayout';
 import { Target, TrendingUp, DollarSign, Calculator, BarChart3, ChefHat, AlertCircle, CheckCircle } from 'lucide-react';
+import { apiService } from '../../../../shared/infrastructure/services/api.service';
 
 // Datos de ejemplo para desarrollo
 const mockRecipes = [
@@ -10,7 +11,7 @@ const mockRecipes = [
     nombre_receta: "Hamburguesa Clásica",
     tiempo_preparacion: 15,
     personal_requerido: 2,
-    costos_adicionales: 2.50,
+    costo_receta: 2.50,
     precio_venta: 8.99,
     producto: {
       nombre_producto: "Hamburguesa",
@@ -24,7 +25,7 @@ const mockRecipes = [
     nombre_receta: "Pizza Margherita",
     tiempo_preparacion: 25,
     personal_requerido: 3,
-    costos_adicionales: 3.00,
+    costo_receta: 3.00,
     precio_venta: 12.99,
     producto: {
       nombre_producto: "Pizza",
@@ -38,7 +39,7 @@ const mockRecipes = [
     nombre_receta: "Ensalada César",
     tiempo_preparacion: 10,
     personal_requerido: 1,
-    costos_adicionales: 1.50,
+    costo_receta: 1.50,
     precio_venta: 6.99,
     producto: {
       nombre_producto: "Ensalada",
@@ -49,25 +50,27 @@ const mockRecipes = [
 ];
 
 export function EquilibriumPage() {
-  // Datos de ejemplo para desarrollo
-  const mockCostosFijos = 5000; // $5,000 mensuales
+  // Estado para los costos fijos desde la base de datos
+  const [costosFijos, setCostosFijos] = useState<number>(0);
+  const [loadingCostos, setLoadingCostos] = useState<boolean>(true);
+  
+  // Estado para las recetas desde la base de datos
+  const [recetas, setRecetas] = useState<any[]>([]);
+  const [loadingRecetas, setLoadingRecetas] = useState<boolean>(true);
+  
   const gananciaObjetivo = 2000; // $2,000 de ganancia objetivo
 
   // Estado para las cantidades de ventas de cada receta
-  const [cantidadesVentas, setCantidadesVentas] = useState<{ [key: number]: number }>({
-    1: 100, // Hamburguesas
-    2: 80,  // Pizzas
-    3: 120  // Ensaladas
-  });
+  const [cantidadesVentas, setCantidadesVentas] = useState<{ [key: number]: number }>({});
 
   // Estado para el ganancia objetivo
   const [gananciaObjetivoState, setGananciaObjetivoState] = useState(gananciaObjetivo);
 
   // CÁLCULOS CORREGIDOS usando las fórmulas correctas
-  const recetasEquilibrio = mockRecipes.map(receta => {
+  const recetasEquilibrio = recetas.map(receta => {
     const qty = cantidadesVentas[receta.receta_id] || 0;
     const price = receta.precio_venta;
-    const varCost = receta.costos_adicionales || 0;
+    const varCost = receta.costo_receta || 0;
     
     // Fórmula correcta: revenue = qty × price
     const revenue = qty * price;
@@ -81,16 +84,16 @@ export function EquilibriumPage() {
     // Fórmula correcta: CMR = CM / revenue (si revenue > 0)
     const CMR = revenue > 0 ? CM / revenue : 0;
 
-    return {
-      receta,
-      cantidad_ventas: qty,
-      ingresos_totales: revenue,
-      costos_variables: varTotal,
-      margen_contribucion: CM,
-      ratio_margen: CMR,
-      precio_venta: price,
-      costo_variable_unitario: varCost
-    };
+          return {
+        receta,
+        cantidad_ventas: qty,
+        ingresos_totales: revenue,
+        costos_variables: varTotal,
+        margen_contribucion: CM,
+        ratio_margen: CMR,
+        precio_venta: price,
+        costo_variable_unitario: varCost
+      };
   });
 
   // CÁLCULOS TOTALES CORREGIDOS usando useMemo para optimización
@@ -115,14 +118,14 @@ export function EquilibriumPage() {
   );
   
   const profit = useMemo(() => 
-    totalRevenue - totalVarCosts - mockCostosFijos,
-    [totalRevenue, totalVarCosts]
+    totalRevenue - totalVarCosts - costosFijos,
+    [totalRevenue, totalVarCosts, costosFijos]
   );
   
   // PUNTO DE EQUILIBRIO CLÁSICO (sin meta)
   const BE_revenue = useMemo(() => 
-    totalCMR > 0 ? mockCostosFijos / totalCMR : 0,
-    [totalCMR]
+    totalCMR > 0 ? costosFijos / totalCMR : 0,
+    [totalCMR, costosFijos]
   );
   
   const gap_BE = useMemo(() => 
@@ -132,8 +135,8 @@ export function EquilibriumPage() {
   
   // EQUILIBRIO CON META (cubrir CF + CV + meta)
   const Target_revenue = useMemo(() => 
-    totalCMR > 0 ? (mockCostosFijos + gananciaObjetivoState) / totalCMR : 0,
-    [totalCMR, gananciaObjetivoState]
+    totalCMR > 0 ? (costosFijos + gananciaObjetivoState) / totalCMR : 0,
+    [totalCMR, gananciaObjetivoState, costosFijos]
   );
   
   const gap_Target = useMemo(() => 
@@ -149,10 +152,78 @@ export function EquilibriumPage() {
     }));
   };
 
+  // Función para cargar recetas desde la base de datos
+  const cargarRecetas = async () => {
+    try {
+      setLoadingRecetas(true);
+      
+      const response = await apiService.get('/recetas/all');
+      
+      if (response.success && response.data) {
+        setRecetas(response.data);
+        // Inicializar cantidades de ventas con valores por defecto
+        const cantidadesIniciales: { [key: number]: number } = {};
+        response.data.forEach((receta: any) => {
+          cantidadesIniciales[receta.receta_id] = 100; // Valor por defecto
+        });
+        setCantidadesVentas(cantidadesIniciales);
+      } else {
+        // Si no hay datos, usar mock data
+        setRecetas(mockRecipes);
+        setCantidadesVentas({
+          1: 100, // Hamburguesas
+          2: 80,  // Pizzas
+          3: 120  // Ensaladas
+        });
+      }
+    } catch (error) {
+      console.error('Error al cargar recetas:', error);
+      // En caso de error, usar mock data
+      setRecetas(mockRecipes);
+      setCantidadesVentas({
+        1: 100, // Hamburguesas
+        2: 80,  // Pizzas
+        3: 120  // Ensaladas
+      });
+    } finally {
+      setLoadingRecetas(false);
+    }
+  };
+
+  // Función para cargar costos fijos desde la base de datos
+  const cargarCostosFijos = async () => {
+    try {
+      setLoadingCostos(true);
+      // Por ahora usamos un negocioId hardcodeado, pero debería venir del contexto de autenticación
+      const negocioId = 1; // TODO: Obtener del contexto de usuario autenticado
+      
+      const response = await apiService.get(`/costos-fijos/total/${negocioId}`);
+      
+      if (response.success && response.data) {
+        setCostosFijos(response.data.total || 0);
+      } else {
+        // Si no hay datos o hay error, usar 0 por defecto
+        setCostosFijos(0);
+      }
+    } catch (error) {
+      console.error('Error al cargar costos fijos:', error);
+      // En caso de error, usar 0 por defecto
+      setCostosFijos(0);
+    } finally {
+      setLoadingCostos(false);
+    }
+  };
+
   // Función para actualizar ganancia objetivo
   const actualizarGananciaObjetivo = (nuevaGanancia: number) => {
     setGananciaObjetivoState(Math.max(0, nuevaGanancia));
   };
+
+  // useEffect para cargar datos al montar el componente
+  useEffect(() => {
+    cargarRecetas();
+    cargarCostosFijos();
+  }, []);
 
   // useEffect para depurar cambios en ganancia objetivo
   useEffect(() => {
@@ -206,26 +277,94 @@ export function EquilibriumPage() {
               <span className="ml-1 text-green-600">✓ Activo</span>
             </div>
           </div>
-          <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-            <p className="text-sm text-blue-800">
-              <strong>Nota:</strong> Los cambios en la ganancia objetivo se aplican automáticamente y actualizan todos los cálculos del punto de equilibrio en tiempo real.
-            </p>
-          </div>
+                     <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+             <p className="text-sm text-blue-800">
+               <strong>Nota:</strong> Los cambios en la ganancia objetivo se aplican automáticamente y actualizan todos los cálculos del punto de equilibrio en tiempo real.
+             </p>
+           </div>
+           <div className={`mt-3 p-3 rounded-lg border ${
+             loadingCostos 
+               ? 'bg-gray-50 border-gray-200' 
+               : costosFijos > 0 
+                 ? 'bg-green-50 border-green-200' 
+                 : 'bg-yellow-50 border-yellow-200'
+           }`}>
+             <p className={`text-sm ${
+               loadingCostos 
+                 ? 'text-gray-800' 
+                 : costosFijos > 0 
+                   ? 'text-green-800' 
+                   : 'text-yellow-800'
+             }`}>
+               <strong>Costos Fijos:</strong> 
+               {loadingCostos 
+                 ? ' Cargando desde la base de datos...' 
+                 : costosFijos > 0 
+                   ? ` Total cargado: $${costosFijos.toLocaleString()} (desde BD)` 
+                   : ' No se encontraron costos fijos en la base de datos. Se usa valor por defecto: $0'
+               }
+             </p>
+           </div>
+           <div className={`mt-3 p-3 rounded-lg border ${
+             loadingRecetas 
+               ? 'bg-gray-50 border-gray-200' 
+               : recetas.length > 0 
+                 ? 'bg-green-50 border-green-200' 
+                 : 'bg-yellow-50 border-yellow-200'
+           }`}>
+             <p className={`text-sm ${
+               loadingRecetas 
+                 ? 'text-gray-800' 
+                 : recetas.length > 0 
+                   ? 'text-green-800' 
+                   : 'text-yellow-800'
+             }`}>
+               <strong>Recetas:</strong> 
+               {loadingRecetas 
+                 ? ' Cargando desde la base de datos...' 
+                 : recetas.length > 0 
+                   ? ` ${recetas.length} recetas cargadas desde BD` 
+                   : ' No se encontraron recetas. Usando datos de ejemplo'
+               }
+             </p>
+           </div>
         </div>
 
         {/* Resumen de costos y métricas clave */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-2xl font-semibold text-gray-900 mb-6">Métricas Clave del Negocio</h2>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-              <div className="flex items-center gap-3">
-                <Calculator className="w-5 h-5 text-blue-600" />
-                <div>
-                  <p className="text-sm text-blue-600 font-medium">Costos Fijos</p>
-                  <p className="text-xl font-bold text-blue-900">${mockCostosFijos.toLocaleString()}</p>
-                </div>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                         <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+               <div className="flex items-center justify-between">
+                 <div className="flex items-center gap-3">
+                   <Calculator className="w-5 h-5 text-blue-600" />
+                   <div>
+                     <p className="text-sm text-blue-600 font-medium">Costos Fijos</p>
+                     {loadingCostos ? (
+                       <div className="flex items-center gap-2">
+                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                         <span className="text-sm text-blue-600">Cargando...</span>
+                       </div>
+                     ) : (
+                       <p className="text-xl font-bold text-blue-900">
+                         ${costosFijos.toLocaleString()}
+                       </p>
+                     )}
+                   </div>
+                 </div>
+                 {!loadingCostos && (
+                   <button
+                     onClick={cargarCostosFijos}
+                     className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-lg transition-colors"
+                     title="Recargar costos fijos"
+                   >
+                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                     </svg>
+                   </button>
+                 )}
+               </div>
+             </div>
 
             <div className="bg-green-50 rounded-lg p-4 border border-green-200">
               <div className="flex items-center gap-3">
@@ -247,15 +386,7 @@ export function EquilibriumPage() {
               </div>
             </div>
 
-            <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
-              <div className="flex items-center gap-3">
-                <Target className="w-5 h-5 text-orange-600" />
-                <div>
-                  <p className="text-sm text-orange-600 font-medium">Ratio Margen</p>
-                  <p className="text-xl font-bold text-orange-900">{(totalCMR * 100).toFixed(1)}%</p>
-                </div>
-              </div>
-            </div>
+
 
             <div className={`rounded-lg p-4 border ${profit >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
               <div className="flex items-center gap-3">
@@ -277,12 +408,24 @@ export function EquilibriumPage() {
           </div>
         </div>
 
-        {/* Lista de recetas con controles interactivos */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-6">Recetas y Controles Interactivos</h2>
-          
-          <div className="space-y-6">
-            {recetasEquilibrio.map((item) => {
+                 {/* Lista de recetas con controles interactivos */}
+         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+           <h2 className="text-2xl font-semibold text-gray-900 mb-6">Recetas y Controles Interactivos</h2>
+           
+           {loadingRecetas ? (
+             <div className="flex items-center justify-center py-12">
+               <div className="flex items-center gap-3">
+                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                 <span className="text-lg text-gray-600">Cargando recetas desde la base de datos...</span>
+               </div>
+             </div>
+           ) : recetasEquilibrio.length === 0 ? (
+             <div className="text-center py-12">
+               <p className="text-gray-500 text-lg">No se encontraron recetas en la base de datos</p>
+             </div>
+           ) : (
+           <div className="space-y-6">
+             {recetasEquilibrio.map((item) => {
               const cantidadMinima = 0; // Siempre empieza desde 0
               const cantidadMaxima = 500; // Máximo fijo para simplicidad
               
@@ -373,23 +516,24 @@ export function EquilibriumPage() {
                     </div>
                   </div>
 
-                  {/* Información adicional */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-                    <div>
-                      <span className="font-medium">Tiempo preparación:</span> {item.receta.tiempo_preparacion || 'N/A'} min
-                    </div>
-                    <div>
-                      <span className="font-medium">Personal requerido:</span> {item.receta.personal_requerido || 'N/A'} personas
-                    </div>
-                    <div>
-                      <span className="font-medium">Costo variable unitario:</span> ${item.costo_variable_unitario}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+                                     {/* Información adicional */}
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                     <div>
+                       <span className="font-medium">Tiempo preparación:</span> {item.receta.tiempo_preparacion || 'N/A'} min
+                     </div>
+                     <div>
+                       <span className="font-medium">Personal requerido:</span> {item.receta.personal_requerido || 'N/A'} personas
+                     </div>
+                     <div>
+                       <span className="font-medium">Costo de receta:</span> ${item.receta.costo_receta}
+                     </div>
+                   </div>
+                                 </div>
+               );
+             })}
+           </div>
+           )}
+         </div>
 
         {/* Estado del punto de equilibrio usando fórmulas correctas */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -412,10 +556,16 @@ export function EquilibriumPage() {
                   <span className="text-gray-600">Margen de contribución:</span>
                   <span className="font-semibold text-blue-600">${totalCM.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Costos fijos:</span>
-                  <span className="font-semibold text-red-600">${mockCostosFijos.toLocaleString()}</span>
-                </div>
+                                 <div className="flex justify-between">
+                   <span className="text-gray-600">Costos fijos:</span>
+                   <span className="font-semibold text-red-600">
+                     {loadingCostos ? (
+                       <span className="text-sm text-gray-500">Cargando...</span>
+                     ) : (
+                       `$${costosFijos.toLocaleString()}`
+                     )}
+                   </span>
+                 </div>
                 <hr className="border-gray-300" />
                 <div className="flex justify-between text-lg font-bold">
                   <span className="text-gray-800">Utilidad/Pérdida:</span>
@@ -486,10 +636,7 @@ export function EquilibriumPage() {
                   <span className="text-gray-600">Ingresos actuales:</span>
                   <span className="font-semibold text-green-600">${totalRevenue.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Ratio margen (CMR):</span>
-                  <span className="font-semibold text-purple-600">{(totalCMR * 100).toFixed(1)}%</span>
-                </div>
+
                 <hr className="border-gray-300" />
                 <div className="flex justify-between text-lg font-bold">
                   <span className="text-gray-800">Brecha para equilibrio:</span>
@@ -573,12 +720,7 @@ export function EquilibriumPage() {
                     <strong>Punto de equilibrio:</strong> Necesitas generar ${BE_revenue.toLocaleString()} en ingresos para cubrir costos fijos.
                   </p>
                 </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
-                  <p className="text-sm text-gray-700">
-                    <strong>Ratio de margen:</strong> Tu CMR actual es {(totalCMR * 100).toFixed(1)}%. Un CMR más alto significa menos ventas necesarias.
-                  </p>
-                </div>
+
                 <div className="flex items-start gap-3">
                   <div className="w-2 h-2 bg-purple-500 rounded-full mt-2 flex-shrink-0"></div>
                   <p className="text-sm text-gray-700">

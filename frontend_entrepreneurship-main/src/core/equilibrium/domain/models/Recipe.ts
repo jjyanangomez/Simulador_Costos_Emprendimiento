@@ -4,7 +4,7 @@ export interface Recipe {
   nombre_receta: string;
   tiempo_preparacion?: number;
   personal_requerido?: number;
-  costos_adicionales?: number;
+  costo_receta: number;
   precio_venta: number;
   producto?: {
     nombre_producto: string;

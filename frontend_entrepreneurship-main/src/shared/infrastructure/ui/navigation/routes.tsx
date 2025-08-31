@@ -7,6 +7,7 @@ import { ProtectedRoute } from "../../../../core/auth/infrastructure/components/
 import { DashboardPage } from "../../../../core/dashboard/infrastructure/ui/DashboardPage";
 import { BusinessSetupPage } from "../../../../core/business-setup/infrastructure/ui/BusinessSetupPage";
 import { FixedCostsPage } from "../../../../core/fixed-costs/infrastructure/ui/FixedCostsPage";
+import { FixedCostsSummaryPage } from "../../../../core/fixed-costs/infrastructure/ui/FixedCostsSummaryPage";
 import { VariableCostsPage } from "../../../../core/variable-costs/infrastructure/ui/VariableCostsPage";
 import { ProfitabilityAnalysisPage } from "../../../../core/profitability-analysis/infrastructure/ui/ProfitabilityAnalysisPage";
 import { ResultsPage } from "../../../../core/results/infrastructure/ui/ResultsPage";
@@ -100,6 +101,20 @@ export const Routes = {
         title: "Costos Fijos",
         path: "",
         element: FixedCostsPage,
+      },
+    },
+  },
+
+  fixedCostsSummary: {
+    path: "/fixed-costs-summary",
+    layout: ({ children }: { children: React.ReactNode }) => (
+      <ProtectedRoute>{children}</ProtectedRoute>
+    ),
+    routes: {
+      index: {
+        title: "Resumen de Costos Fijos",
+        path: "",
+        element: FixedCostsSummaryPage,
       },
     },
   },

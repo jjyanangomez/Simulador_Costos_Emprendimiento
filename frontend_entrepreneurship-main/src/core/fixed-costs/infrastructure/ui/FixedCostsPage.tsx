@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MainLayout } from '../../../../shared/infrastructure/components/MainLayout';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
@@ -15,6 +15,8 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { AIAnalysisService } from '../services/ai-analysis.service';
+import { FixedCost, BusinessData, FixedCostsSummary } from '../../domain/types';
 
 // Esquema de validación para costos fijos
 const fixedCostSchema = z.object({
@@ -98,6 +100,28 @@ const validateCostWithAI = (cost: any) => {
 export function FixedCostsPage() {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Cargar datos guardados al regresar de la página de resumen
+  useEffect(() => {
+    const savedCostsData = localStorage.getItem('fixedCostsData');
+    if (savedCostsData) {
+      try {
+        const parsedData = JSON.parse(savedCostsData);
+        // Restaurar los campos del formulario
+        parsedData.costs.forEach((cost: any, index: number) => {
+          if (index < fields.length) {
+            setValue(`costs.${index}.name`, cost.name);
+            setValue(`costs.${index}.description`, cost.description || '');
+            setValue(`costs.${index}.amount`, cost.amount);
+            setValue(`costs.${index}.frequency`, cost.frequency);
+            setValue(`costs.${index}.category`, cost.category);
+          }
+        });
+      } catch (error) {
+        console.error('Error al cargar datos guardados:', error);
+      }
+    }
+  }, []);
   const [aiValidations, setAiValidations] = useState<Record<number, any[]>>({});
 
   const {
@@ -169,18 +193,47 @@ export function FixedCostsPage() {
     setIsSubmitting(true);
     
     try {
-      // Aquí se enviarían los datos al backend
-      console.log('Costos fijos:', data);
+      // Obtener datos del negocio del localStorage
+      const businessDataStr = localStorage.getItem('businessSetupData');
+      if (!businessDataStr) {
+        toast.error('No se encontraron los datos del negocio. Completa la configuración primero.');
+        return;
+      }
+
+      const businessData: BusinessData = JSON.parse(businessDataStr);
       
-      // Simular envío
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Convertir datos del formulario a FixedCost[]
+      const fixedCosts: FixedCost[] = data.costs.map(cost => ({
+        name: cost.name,
+        description: cost.description || '',
+        amount: cost.amount,
+        frequency: cost.frequency,
+        category: cost.category,
+      }));
+
+      // Mostrar toast de análisis en progreso
+      toast.loading('Analizando costos fijos con IA...', { duration: 2000 });
+
+      // Ejecutar análisis de IA
+      const analysis = await AIAnalysisService.analyzeFixedCosts(fixedCosts, businessData);
+
+      // Crear resumen completo
+      const summary: FixedCostsSummary = {
+        costs: fixedCosts,
+        businessData,
+        analysis,
+      };
+
+      // Guardar en localStorage
+      localStorage.setItem('fixedCostsSummary', JSON.stringify(summary));
+      localStorage.setItem('fixedCostsData', JSON.stringify(data));
+
+      toast.success('¡Análisis completado! Redirigiendo al resumen...');
       
-      toast.success('¡Costos fijos guardados exitosamente!');
-      
-      // Navegar al siguiente paso
-      navigate('/variable-costs');
+      // Navegar a la página de resumen
+      navigate('/fixed-costs-summary');
     } catch (error) {
-      toast.error('Error al guardar los costos fijos');
+      toast.error('Error al analizar los costos fijos');
       console.error('Error:', error);
     } finally {
       setIsSubmitting(false);

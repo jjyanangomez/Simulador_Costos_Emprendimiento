@@ -42,6 +42,7 @@ import { CompleteAnalysisResultService } from './services/complete-analysis-resu
 import { AnalisisIAService } from './services/analysis_ai.service';
 import { AiService } from './services/ai.service';
 import { CostosFijosService } from './services/costos-fijos.service';
+import { CostosVariablesService } from './services/costos-variables.service'; // ✅ Importar servicio
 import { CategoriaActivoFijoService } from './services/categoria-activo-fijo.service';
 import { ProductosService } from './services/productos.service';
 import { AnalisisService } from './services/analisis.service';
@@ -82,6 +83,7 @@ import { CategoriaActivoFijoMapper } from './models/mappers/categoria-activo-fij
     AnalisisIAController,
     AiController,
     CostosFijosController,
+    CostosVariablesController, // ✅ Agregar controlador de costos variables
     CategoriaActivoFijoController,
     ProductosController,
     RecetasController,
@@ -105,6 +107,7 @@ import { CategoriaActivoFijoMapper } from './models/mappers/categoria-activo-fij
     AnalisisIAService,
     AiService,
     CostosFijosService,
+    CostosVariablesService, // ✅ Agregar servicio de costos variables
     CategoriaActivoFijoService,
     ProductosService,
     AnalisisService,

@@ -19,8 +19,10 @@ export function VariableCostsSummary({ products, additionalCosts, businessType }
         const costPerPortion = ingredient.unitPrice / (ingredient.portionsObtained || 1);
         return total + (costPerPortion * ingredient.portion);
       }, 0);
+    } else if (product.type === 'resale') {
+      return product.resaleCost || 0; // ✅ Usar el costo de reventa
     }
-    return 0; // Para productos de reventa, el costo se maneja diferente
+    return 0;
   };
 
   // Generar análisis de IA
@@ -30,10 +32,7 @@ export function VariableCostsSummary({ products, additionalCosts, businessType }
     // Simular análisis de IA
     setTimeout(() => {
       const totalProductCosts = products.reduce((sum, product) => {
-        if (product.type === 'recipe') {
-          return sum + calculateProductCosts(product);
-        }
-        return sum; // Para productos de reventa, considerar margen fijo
+        return sum + calculateProductCosts(product); // ✅ Incluir todos los productos
       }, 0);
 
       const totalAdditionalCosts = additionalCosts.reduce((sum, cost) => sum + cost.value, 0);

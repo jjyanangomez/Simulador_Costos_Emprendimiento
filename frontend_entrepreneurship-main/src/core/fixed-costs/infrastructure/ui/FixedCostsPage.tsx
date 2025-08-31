@@ -20,6 +20,7 @@ import { LocalStorageService } from '../../../../shared/services/localStorage.se
 import type { CostosFijosData } from '../../../../shared/services/localStorage.service';
 import { AiAnalysisBackendService } from '../../../../shared/services/aiAnalysisBackend.service';
 import { apiService } from '../../../../shared/infrastructure/services/api.service';
+import { useAuth } from '../../../../core/auth/infrastructure/hooks/useAuth';
 
 // Esquema de validación para costos fijos - CORREGIDO
 const fixedCostSchema = z.object({
@@ -130,13 +131,15 @@ const formatCurrency = (value: number | string | undefined): string => {
 
 export function FixedCostsPage() {
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [aiValidations, setAiValidations] = useState<Record<number, any[]>>({});
-  const [negocioId, setNegocioId] = useState<number>(16); // Usar el negocio que creamos
+  const [negocioId, setNegocioId] = useState<number | null>(null); // Cambiar a null inicialmente
+  const [isLoading, setIsLoading] = useState(true);
   const [costTypes, setCostTypes] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [forceUpdate, setForceUpdate] = useState(0); // Forzar actualización de la UI
+  const [error, setError] = useState<string | null>(null);
+  const [forceUpdate, setForceUpdate] = useState(0);
   const [showResultsModal, setShowResultsModal] = useState(false);
+  const [aiValidations, setAiValidations] = useState<Record<number, any[]>>({});
 
   const {
     control,
@@ -220,13 +223,13 @@ export function FixedCostsPage() {
     });
   }, [watchedCosts.length]);
 
-  // Cargar SOLO las categorías disponibles del backend
+  // Cargar categorías y obtener el negocio del usuario
   useEffect(() => {
     const loadInitialData = async () => {
       try {
         setIsLoading(true);
         
-        // SOLO cargar tipos de costo (categorías disponibles)
+        // 1. Cargar tipos de costo (categorías disponibles)
         const costTypesResponse = await apiService.getCostTypes();
         
         if (costTypesResponse.data) {
@@ -235,7 +238,39 @@ export function FixedCostsPage() {
           setCostTypes([]);
         }
         
-        // NO cargar costos existentes - el usuario los ingresará manualmente
+                 // 2. Obtener el negocio del usuario logueado
+         if (user && user.usuarioId) {
+           try {
+             const businessesResponse = await apiService.getBusinesses();
+             console.log('📡 Respuesta de la API de negocios:', businessesResponse);
+             
+             // La API devuelve directamente un array, no { data: [...] }
+             const negocios = Array.isArray(businessesResponse) ? businessesResponse : businessesResponse.data || [];
+             console.log('📋 Negocios disponibles:', negocios);
+             
+             // Buscar el negocio del usuario usando los nombres de campos correctos
+             const userBusiness = negocios.find((business: any) => 
+               business.usuarioId === user.usuarioId || business.usuario_id === user.usuarioId
+             );
+             
+             if (userBusiness) {
+               // Usar el campo correcto para el ID del negocio
+               const negocioId = userBusiness.negocioId || userBusiness.negocio_id;
+               setNegocioId(negocioId);
+               console.log('✅ Negocio encontrado para el usuario:', userBusiness);
+               console.log('🆔 ID del negocio:', negocioId);
+             } else {
+               setError('No se encontró un negocio para este usuario');
+               console.error('❌ No hay negocio para el usuario:', user.usuarioId);
+               console.error('❌ Negocios disponibles:', negocios);
+             }
+           } catch (businessError) {
+             console.error('❌ Error al obtener negocios:', businessError);
+             setError('Error al obtener el negocio del usuario');
+           }
+         } else {
+           setError('Usuario no autenticado');
+         }
         
       } catch (error) {
         toast.error('Error al cargar las categorías disponibles');
@@ -253,8 +288,12 @@ export function FixedCostsPage() {
       }
     };
 
-    loadInitialData();
-  }, []); // Solo se ejecuta una vez al cargar la página
+    if (isAuthenticated && user) {
+      loadInitialData();
+    } else {
+      setIsLoading(false);
+    }
+  }, [user, isAuthenticated]); // Se ejecuta cuando cambie el usuario o autenticación
 
   // Validar automáticamente todos los costos cuando cambien - MEJORADO
   useEffect(() => {
@@ -421,6 +460,64 @@ export function FixedCostsPage() {
     return 'border-green-200 bg-green-50';
   };
 
+
+  // Verificar si el usuario está autenticado y tiene un negocio
+  if (!isAuthenticated || !user) {
+    return (
+      <MainLayout>
+        <div className="max-w-4xl mx-auto text-center space-y-6">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8">
+            <h1 className="text-2xl font-bold text-yellow-800 mb-4">
+              🔐 Acceso Requerido
+            </h1>
+            <p className="text-lg text-yellow-700">
+              Debes iniciar sesión para acceder a esta página.
+            </p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <MainLayout>
+        <div className="max-w-4xl mx-auto text-center space-y-6">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-8">
+            <h1 className="text-2xl font-bold text-red-800 mb-4">
+              ❌ Error
+            </h1>
+            <p className="text-lg text-red-700">
+              {error}
+            </p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+            >
+              Reintentar
+            </button>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (!negocioId) {
+    return (
+      <MainLayout>
+        <div className="max-w-4xl mx-auto text-center space-y-6">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-8">
+            <h1 className="text-2xl font-bold text-blue-800 mb-4">
+              🔄 Cargando...
+            </h1>
+            <p className="text-lg text-blue-700">
+              Obteniendo información del negocio...
+            </p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>

@@ -16,6 +16,7 @@ import toast from 'react-hot-toast';
 import { BusinessAnalysisModal } from './components/BusinessAnalysisModal';
 import { BusinessAnalysisService } from '../../../../shared/services/BusinessAnalysisService';
 import { saveBusinessName } from '../../../../shared/utils/businessNameStorage';
+import { useAuth } from '../../../auth/infrastructure/hooks/useAuth';
 import '../../../../shared/utils/consoleLogger'; // Importar para exponer funciones globalmente
 
 // Esquema de validación
@@ -87,6 +88,7 @@ interface AIAnalysis {
 
 export function BusinessSetupPage() {
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<AIAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -108,19 +110,25 @@ export function BusinessSetupPage() {
       // Importar el servicio
       const { BusinessBackendService } = await import('../../services/BusinessBackendService');
       
-      // Preparar datos del negocio para el backend
-      const businessData = {
-        usuarioId: 4, // Usuario que creamos en el backend
-        nombreNegocio: data.businessName,
-        ubicacionExacta: data.exactLocation || 'Ubicación no especificada',
-        idTamano: 1, // Tamaño "Pequeño" que ya existe
-        sectorId: 1, // Sector "Restaurantes y Cafeterías" que ya existe
-        aforoPersonas: data.capacity,
-        inversionInicial: data.investmentItems?.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) || 0,
-        capitalPropio: data.financingType === 'personal' ? data.investmentItems?.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) || 0 : data.ownCapital || 0,
-        capitalPrestamo: data.financingType === 'prestamo' ? data.investmentItems?.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) || 0 : data.loanCapital || 0,
-        tasaInteres: data.interestRate || 0
-      };
+             // Verificar que el usuario esté autenticado
+       if (!isAuthenticated || !user) {
+         toast.error('Debes estar logueado para crear un negocio');
+         return;
+       }
+
+       // Preparar datos del negocio para el backend
+       const businessData = {
+         usuarioId: user.usuarioId, // Usar el ID del usuario logueado
+         nombreNegocio: data.businessName,
+         ubicacionExacta: data.exactLocation || 'Ubicación no especificada',
+         idTamano: 2, // Tamaño "Microempresa (1-10 empleados)" que existe en el backend
+         sectorId: 1, // Sector "Restaurantes y Gastronomía" que existe en el backend
+         aforoPersonas: data.capacity,
+         inversionInicial: data.investmentItems?.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) || 0,
+         capitalPropio: data.financingType === 'personal' ? data.investmentItems?.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) || 0 : data.ownCapital || 0,
+         capitalPrestamo: data.financingType === 'prestamo' ? data.investmentItems?.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) || 0 : data.loanCapital || 0,
+         tasaInteres: data.interestRate || 0
+       };
       
       // Preparar items de inversión para el backend
       const investmentItems = data.investmentItems?.map(item => ({
@@ -742,6 +750,30 @@ export function BusinessSetupPage() {
     setAiAnalysis(null);
   };
 
+  // Verificar si el usuario está autenticado
+  if (!isAuthenticated || !user) {
+    return (
+      <MainLayout>
+        <div className="max-w-4xl mx-auto text-center space-y-6">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8">
+            <h1 className="text-2xl font-bold text-yellow-800 mb-4">
+              🔐 Acceso Requerido
+            </h1>
+            <p className="text-lg text-yellow-700 mb-6">
+              Debes iniciar sesión para configurar tu negocio
+            </p>
+            <button
+              onClick={() => navigate('/login')}
+              className="px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
+            >
+              Ir al Login
+            </button>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
   return (
     <MainLayout>
       <div className="max-w-4xl mx-auto space-y-8">
@@ -752,6 +784,9 @@ export function BusinessSetupPage() {
           </h1>
           <p className="text-lg text-gray-600">
             Define los datos básicos de tu negocio de alimentos y bebidas
+          </p>
+          <p className="text-sm text-gray-500 mt-2">
+            Usuario: {user.nombreCompleto} ({user.email})
           </p>
         </div>
 

@@ -118,6 +118,31 @@ class ApiService {
     });
   }
 
+  // Métodos para costos variables
+  async createVariableCost(costData: any): Promise<ApiResponse> {
+    return this.request('/costos-variables', {
+      method: 'POST',
+      body: JSON.stringify(costData),
+    });
+  }
+
+  async getVariableCosts(negocioId: number): Promise<ApiResponse> {
+    return this.request(`/costos-variables/${negocioId}`);
+  }
+
+  async updateVariableCost(id: number, costData: any): Promise<ApiResponse> {
+    return this.request(`/costos-variables/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(costData),
+    });
+  }
+
+  async deleteVariableCost(id: number): Promise<ApiResponse> {
+    return this.request(`/costos-variables/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Métodos para productos
   async createProduct(productData: any): Promise<ApiResponse> {
     return this.request('/productos', {
